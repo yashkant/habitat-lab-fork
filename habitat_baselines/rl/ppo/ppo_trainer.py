@@ -850,15 +850,15 @@ class PPOTrainer(BaseRLTrainer):
 
         ppo_cfg = config.RL.PPO
 
-        config.defrost()
-        config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
-        config.freeze()
+        #config.defrost()
+        #config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
+        #config.freeze()
 
-        if len(self.config.VIDEO_OPTION) > 0:
-            config.defrost()
-            config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
-            config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
-            config.freeze()
+        #if len(self.config.VIDEO_OPTION) > 0:
+        #    config.defrost()
+        #    config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
+        #    config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
+        #    config.freeze()
 
         if config.VERBOSE:
             logger.info(f"env config: {config}")
