@@ -139,15 +139,16 @@ class PPOTrainer(BaseRLTrainer):
                 continue
 
             if isinstance(v, dict):
-                result.update(
-                    {
-                        k + "." + subk: subv
-                        for subk, subv in cls._extract_scalars_from_info(
-                            v
-                        ).items()
-                        if (k + "." + subk) not in cls.METRICS_BLACKLIST
-                    }
-                )
+                pass
+                #result.update(
+                #    {
+                #        k + "." + subk: subv
+                #        for subk, subv in cls._extract_scalars_from_info(
+                #            v
+                #        ).items()
+                #        if (k + "." + subk) not in cls.METRICS_BLACKLIST
+                #    }
+                #)
             # Things that are scalar-like will have an np.size of 1.
             # Strings also have an np.size of 1, so explicitly ban those
             elif np.size(v) == 1 and not isinstance(v, str):
@@ -197,18 +198,9 @@ class PPOTrainer(BaseRLTrainer):
         pth_time += time.time() - t_sample_action
 
         t_step_env = time.time()
-        # NB: Move actions to CPU.  If CUDA tensors are
-        # sent in to env.step(), that will create CUDA contexts
-        # in the subprocesses.
-        # For backwards compatibility, we also call .item() to convert to
-        # an int
-        step_data = [a.item() for a in actions.to(device="cpu")]
-        profiling_wrapper.range_pop()  # compute actions
 
-        outputs = self.envs.step(step_data)
-        observations, rewards_l, dones, infos = [
-            list(x) for x in zip(*outputs)
-        ]
+        profiling_wrapper.range_pop()  # compute actions
+        observations, rewards, dones, infos = self.envs.step(actions.cpu().numpy())
 
         env_time += time.time() - t_step_env
 
@@ -303,9 +295,15 @@ class PPOTrainer(BaseRLTrainer):
             num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,
         )
 
-        self.envs = construct_envs(
-            self.config, get_env_class(self.config.ENV_NAME)
-        )
+        if 'CUSTOM_LOAD' in self.config and self.config.CUSTOM_LOAD:
+            import sys
+            sys.path.insert(0, './')
+            from orp_env_adapter import get_hab_envs
+            self.envs = get_hab_envs(self.config)
+        else:
+            self.envs = construct_envs(
+                self.config, get_env_class(self.config.ENV_NAME)
+            )
 
         ppo_cfg = self.config.RL.PPO
         self.device = (
