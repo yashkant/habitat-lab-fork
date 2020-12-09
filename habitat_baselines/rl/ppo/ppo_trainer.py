@@ -294,6 +294,15 @@ class PPOTrainer(BaseRLTrainer):
             capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,
             num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,
         )
+        if 'CUSTOM_LOAD' in self.config and self.config.CUSTOM_LOAD:
+            import sys
+            sys.path.insert(0, './')
+            from orp_env_adapter import get_hab_envs
+            self.envs = get_hab_envs(self.config)
+        else:
+            self.envs = construct_envs(
+                self.config, get_env_class(self.config.ENV_NAME)
+            )
 
         if 'CUSTOM_LOAD' in self.config and self.config.CUSTOM_LOAD:
             import sys
