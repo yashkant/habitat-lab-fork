@@ -117,6 +117,7 @@ class PointNavBaselinePolicy(Policy):
                 **kwargs,
             ),
             action_space
+<<<<<<< HEAD
         )
 
     @classmethod
@@ -127,6 +128,8 @@ class PointNavBaselinePolicy(Policy):
             observation_space=observation_space,
             action_space=action_space,
             hidden_size=config.RL.PPO.hidden_size,
+=======
+>>>>>>> ad966ef... Adapted some training details
         )
 
 
@@ -174,6 +177,7 @@ class PointNavBaselineNet(Net):
             self._n_input_goal = observation_space.spaces[
                 PointGoalSensor.cls_uuid
             ].shape[0]
+<<<<<<< HEAD
         elif ImageGoalSensor.cls_uuid in observation_space.spaces:
             goal_observation_space = spaces.Dict(
                 {"rgb": observation_space.spaces[ImageGoalSensor.cls_uuid]}
@@ -182,6 +186,8 @@ class PointNavBaselineNet(Net):
                 goal_observation_space, hidden_size
             )
             self._n_input_goal = hidden_size
+=======
+>>>>>>> ad966ef... Adapted some training details
         else:
             self.fuse_states = ["joint", "ee_pos"]
             self._n_input_goal = sum([observation_space.spaces[n].shape[0] for n in
@@ -219,9 +225,12 @@ class PointNavBaselineNet(Net):
 
         elif PointGoalSensor.cls_uuid in observations:
             target_encoding = observations[PointGoalSensor.cls_uuid]
+<<<<<<< HEAD
         elif ImageGoalSensor.cls_uuid in observations:
             image_goal = observations[ImageGoalSensor.cls_uuid]
             target_encoding = self.goal_visual_encoder({"rgb": image_goal})
+=======
+>>>>>>> ad966ef... Adapted some training details
         else:
             target_encoding = torch.cat([observations[k] for k in
                 self.fuse_states], dim=-1)
