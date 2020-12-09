@@ -308,7 +308,8 @@ class PPOTrainer(BaseRLTrainer):
             import sys
             sys.path.insert(0, './')
             from orp_env_adapter import get_hab_envs
-            self.envs = get_hab_envs(self.config)
+            from method.orp_log_adapter import CustomLogger
+            self.envs, args = get_hab_envs(self.config, './config.yaml')
         else:
             self.envs = construct_envs(
                 self.config, get_env_class(self.config.ENV_NAME)
@@ -371,9 +372,10 @@ class PPOTrainer(BaseRLTrainer):
             lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),  # type: ignore
         )
 
-        with TensorboardWriter(
-            self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
-        ) as writer:
+        #with TensorboardWriter(
+        #    self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
+        #) as writer:
+        with CustomLogger(not self.config.no_wb, args) as writer:
             for update in range(self.config.NUM_UPDATES):
                 profiling_wrapper.on_start_step()
                 profiling_wrapper.range_push("train update")
@@ -444,11 +446,17 @@ class PPOTrainer(BaseRLTrainer):
 
                 # log stats
                 if update > 0 and update % self.config.LOG_INTERVAL == 0:
+                    fps = count_steps / (time.time() - t_start)
                     logger.info(
                         "update: {}\tfps: {:.3f}\t".format(
-                            update, count_steps / (time.time() - t_start)
+                            update, fps
                         )
                     )
+                    writer.add_scalars('metrics', {
+                        'fps': fps,
+                        'pth_time': pth_time,
+                        'env_time': env_time
+                        }, count_steps)
 
                     logger.info(
                         "update: {}\tenv-time: {:.3f}s\tpth-time: {:.3f}s\t"
@@ -505,15 +513,15 @@ class PPOTrainer(BaseRLTrainer):
 
         ppo_cfg = config.RL.PPO
 
-        config.defrost()
-        config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
-        config.freeze()
+        #config.defrost()
+        #config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
+        #config.freeze()
 
-        if len(self.config.VIDEO_OPTION) > 0:
-            config.defrost()
-            config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
-            config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
-            config.freeze()
+        #if len(self.config.VIDEO_OPTION) > 0:
+        #    config.defrost()
+        #    config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
+        #    config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
+        #    config.freeze()
 
         logger.info(f"env config: {config}")
         self.envs = construct_envs(config, get_env_class(config.ENV_NAME))
