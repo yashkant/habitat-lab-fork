@@ -22,16 +22,20 @@ from habitat_baselines.rl.models.rnn_state_encoder import (
 from habitat_baselines.rl.models.simple_cnn import SimpleCNN
 from habitat_baselines.utils.common import CategoricalNet
 
+import rlf.policies.utils as putils
+import rlf.rl.utils as rutils
+
 
 class Policy(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, net, dim_actions):
+    def __init__(self, net, action_space):
         super().__init__()
         self.net = net
-        self.dim_actions = dim_actions
 
-        self.action_distribution = CategoricalNet(
-            self.net.output_size, self.dim_actions
-        )
+        self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
+
+        #self.action_distribution = CategoricalNet(
+        #    self.net.output_size, self.dim_actions
+        #)
         self.critic = CriticHead(self.net.output_size)
 
     def forward(self, *x):
@@ -112,7 +116,7 @@ class PointNavBaselinePolicy(Policy):
                 hidden_size=hidden_size,
                 **kwargs,
             ),
-            action_space.n,
+            action_space
         )
 
     @classmethod
@@ -178,10 +182,15 @@ class PointNavBaselineNet(Net):
                 goal_observation_space, hidden_size
             )
             self._n_input_goal = hidden_size
+        else:
+            self.fuse_states = ["joint", "ee_pos"]
+            self._n_input_goal = sum([observation_space.spaces[n].shape[0] for n in
+                    self.fuse_states])
 
         self._hidden_size = hidden_size
 
-        self.visual_encoder = SimpleCNN(observation_space, hidden_size)
+        self.visual_encoder = SimpleCNN(observation_space, hidden_size,
+                obs_transform=None)
 
         self.state_encoder = build_rnn_state_encoder(
             (0 if self.is_blind else self._hidden_size) + self._n_input_goal,
@@ -213,6 +222,9 @@ class PointNavBaselineNet(Net):
         elif ImageGoalSensor.cls_uuid in observations:
             image_goal = observations[ImageGoalSensor.cls_uuid]
             target_encoding = self.goal_visual_encoder({"rgb": image_goal})
+        else:
+            target_encoding = torch.cat([observations[k] for k in
+                self.fuse_states], dim=-1)
 
         x = [target_encoding]
 
