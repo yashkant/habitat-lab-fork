@@ -64,6 +64,18 @@ class DDPPOTrainer(PPOTrainer):
 
         super().__init__(config)
 
+    def _get_actor_critic(self, ppo_cfg):
+        return PointNavResNetPolicy(
+            observation_space=self.envs.observation_spaces[0],
+            action_space=self.envs.action_spaces[0],
+            hidden_size=ppo_cfg.hidden_size,
+            rnn_type=self.config.RL.DDPPO.rnn_type,
+            num_recurrent_layers=self.config.RL.DDPPO.num_recurrent_layers,
+            backbone=self.config.RL.DDPPO.backbone,
+            normalize_visual_inputs="rgb" in self.envs.observation_spaces[0].spaces,
+            obs_transform=None
+        )
+
     def _setup_actor_critic_agent(self, ppo_cfg: Config) -> None:
         r"""Sets up actor critic and agent for DD-PPO.
 
@@ -161,8 +173,9 @@ class DDPPOTrainer(PPOTrainer):
         self.world_size = distrib.get_world_size()
 
         self.config.defrost()
-        self.config.TORCH_GPU_ID = self.local_rank
-        self.config.SIMULATOR_GPU_ID = self.local_rank
+        os.environ["CUDA_VISIBLE_DEVICES"]=str(self.local_rank)
+        self.config.TORCH_GPU_ID = 0
+        self.config.SIMULATOR_GPU_ID = 0
         # Multiply by the number of simulators to make sure they also get unique seeds
         self.config.TASK_CONFIG.SEED += (
             self.world_rank * self.config.NUM_PROCESSES
@@ -174,16 +187,20 @@ class DDPPOTrainer(PPOTrainer):
         torch.manual_seed(self.config.TASK_CONFIG.SEED)
 
         if torch.cuda.is_available():
-            self.device = torch.device("cuda", self.local_rank)
+            self.device = torch.device("cuda", 0)
             torch.cuda.set_device(self.device)
         else:
             self.device = torch.device("cpu")
 
-        self.envs = construct_envs(
-            self.config,
-            get_env_class(self.config.ENV_NAME),
-            workers_ignore_signals=True,
-        )
+        import sys
+        sys.path.insert(0, './')
+        from orp_env_adapter import get_hab_envs
+        from method.orp_log_adapter import CustomLogger
+        self.envs, args = get_hab_envs(self.config, './config.yaml', False)
+        self.eval_envs, _ = get_hab_envs(self.config, './config.yaml', True, 1)
+        #self.envs = construct_envs(
+        #    self.config, get_env_class(self.config.ENV_NAME)
+        #)
 
         ppo_cfg = self.config.RL.PPO
         if (
@@ -287,9 +304,10 @@ class DDPPOTrainer(PPOTrainer):
             prev_time = requeue_stats["prev_time"]
 
         with (
-            TensorboardWriter(
-                self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
-            )
+            #TensorboardWriter(
+            #    self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
+            #)
+            CustomLogger(not self.config.no_wb, args, self.config)
             if self.world_rank == 0
             else contextlib.suppress()
         ) as writer:
@@ -304,7 +322,6 @@ class DDPPOTrainer(PPOTrainer):
                     self.agent.clip_param = ppo_cfg.clip_param * linear_decay(
                         update, self.config.NUM_UPDATES
                     )
-
                 if EXIT.is_set():
                     profiling_wrapper.range_pop()  # train update
 
@@ -462,6 +479,9 @@ class DDPPOTrainer(PPOTrainer):
                             dict(step=count_steps),
                         )
                         count_checkpoints += 1
+
+                    if update % self.config.EVAL_INTERVAL == 0:
+                        self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
 

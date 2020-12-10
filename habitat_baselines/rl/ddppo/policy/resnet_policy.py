@@ -32,6 +32,7 @@ from habitat_baselines.rl.ddppo.policy.running_mean_and_var import (
 from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
 from habitat_baselines.rl.ppo import Net, Policy
 from habitat_baselines.utils.common import Flatten
+import rlf.rl.utils as rutils
 
 
 @baseline_registry.register_policy
@@ -61,7 +62,7 @@ class PointNavResNetPolicy(Policy):
                 normalize_visual_inputs=normalize_visual_inputs,
                 force_blind_policy=force_blind_policy,
             ),
-            action_space.n,
+            action_space,
         )
 
     @classmethod
@@ -201,8 +202,9 @@ class PointNavResNetNet(Net):
     ):
         super().__init__()
 
-        self.prev_action_embedding = nn.Embedding(action_space.n + 1, 32)
-        self._n_prev_action = 32
+        #self.prev_action_embedding = nn.Embedding(rutils.get_ac_dim(action_space) + 1, 32)
+        #self._n_prev_action = 32
+        self._n_prev_action = action_space.shape[0]
         rnn_input_size = self._n_prev_action
 
         if (
@@ -291,6 +293,10 @@ class PointNavResNetNet(Net):
             )
 
             rnn_input_size += hidden_size
+        # FUSE PROPRIOCEPTIVE STATE
+        self.fuse_states = ["joint", "ee_pos"]
+        rnn_input_size += sum([observation_space.spaces[n].shape[0] for n in
+                self.fuse_states])
 
         self._hidden_size = hidden_size
 
@@ -409,9 +415,13 @@ class PointNavResNetNet(Net):
             goal_output = self.goal_visual_encoder({"rgb": goal_image})
             x.append(self.goal_visual_fc(goal_output))
 
-        prev_actions = self.prev_action_embedding(
-            ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
-        )
+        # always append the fuse states.
+        x.append(torch.cat([observations[k] for k in self.fuse_states],
+            dim=-1))
+
+        #prev_actions = self.prev_action_embedding(
+        #    ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
+        #)
         x.append(prev_actions)
 
         out = torch.cat(x, dim=1)
