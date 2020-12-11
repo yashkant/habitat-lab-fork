@@ -173,9 +173,9 @@ class DDPPOTrainer(PPOTrainer):
         self.world_size = distrib.get_world_size()
 
         self.config.defrost()
-        os.environ["CUDA_VISIBLE_DEVICES"]=str(self.local_rank)
-        self.config.TORCH_GPU_ID = 0
-        self.config.SIMULATOR_GPU_ID = 0
+        #os.environ["CUDA_VISIBLE_DEVICES"]=str(self.local_rank)
+        self.config.TORCH_GPU_ID = self.local_rank
+        self.config.SIMULATOR_GPU_ID = self.local_rank
         # Multiply by the number of simulators to make sure they also get unique seeds
         self.config.TASK_CONFIG.SEED += (
             self.world_rank * self.config.NUM_PROCESSES
@@ -197,7 +197,8 @@ class DDPPOTrainer(PPOTrainer):
         from orp_env_adapter import get_hab_envs
         from method.orp_log_adapter import CustomLogger
         self.envs, args = get_hab_envs(self.config, './config.yaml', False)
-        self.eval_envs, _ = get_hab_envs(self.config, './config.yaml', True, 1)
+        if self.config.EVAL_INTERVAL != -1:
+            self.eval_envs, _ = get_hab_envs(self.config, './config.yaml', True, 1)
         #self.envs = construct_envs(
         #    self.config, get_env_class(self.config.ENV_NAME)
         #)
@@ -484,7 +485,7 @@ class DDPPOTrainer(PPOTrainer):
                         )
                         count_checkpoints += 1
 
-                    if update > 0 and update % self.config.EVAL_INTERVAL == 0:
+                    if self.config.EVAL_INTERVAL > 0 and update > 0 and update % self.config.EVAL_INTERVAL == 0:
                         self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
