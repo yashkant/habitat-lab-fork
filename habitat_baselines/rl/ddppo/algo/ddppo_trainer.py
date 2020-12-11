@@ -447,13 +447,17 @@ class DDPPOTrainer(PPOTrainer):
 
                     # log stats
                     if update > 0 and update % self.config.LOG_INTERVAL == 0:
+                        fps = count_steps / (time.time() - t_start)
                         logger.info(
                             "update: {}\tfps: {:.3f}\t".format(
-                                update,
-                                count_steps
-                                / ((time.time() - t_start) + prev_time),
+                                update, fps
                             )
                         )
+                        writer.add_scalars('metrics', {
+                            'fps': fps,
+                            'pth_time': pth_time,
+                            'env_time': env_time
+                            }, count_steps)
 
                         logger.info(
                             "update: {}\tenv-time: {:.3f}s\tpth-time: {:.3f}s\t"
@@ -473,14 +477,14 @@ class DDPPOTrainer(PPOTrainer):
                         )
 
                     # checkpoint model
-                    if update % self.config.CHECKPOINT_INTERVAL == 0:
+                    if update > 0 and update % self.config.CHECKPOINT_INTERVAL == 0:
                         self.save_checkpoint(
                             f"ckpt.{count_checkpoints}.pth",
                             dict(step=count_steps),
                         )
                         count_checkpoints += 1
 
-                    if update % self.config.EVAL_INTERVAL == 0:
+                    if update > 0 and update % self.config.EVAL_INTERVAL == 0:
                         self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
