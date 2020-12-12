@@ -174,8 +174,11 @@ class DDPPOTrainer(PPOTrainer):
 
         self.config.defrost()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(self.local_rank)
-        self.config.TORCH_GPU_ID = self.local_rank
-        self.config.SIMULATOR_GPU_ID = self.local_rank
+
+        #use_gpu = 0
+        use_gpu = self.local_rank
+        self.config.TORCH_GPU_ID = use_gpu
+        self.config.SIMULATOR_GPU_ID = use_gpu
         # Multiply by the number of simulators to make sure they also get unique seeds
         self.config.TASK_CONFIG.SEED += (
             self.world_rank * self.config.NUM_PROCESSES
@@ -196,12 +199,11 @@ class DDPPOTrainer(PPOTrainer):
         sys.path.insert(0, './')
         from orp_env_adapter import get_hab_envs
         from method.orp_log_adapter import CustomLogger
-        self.envs, args = get_hab_envs(self.config, './config.yaml', False)
+        self.envs, args = get_hab_envs(self.config, './config.yaml', False,
+                spec_gpu=use_gpu)
         if self.config.EVAL_INTERVAL != -1:
-            self.eval_envs, _ = get_hab_envs(self.config, './config.yaml', True, 1)
-        #self.envs = construct_envs(
-        #    self.config, get_env_class(self.config.ENV_NAME)
-        #)
+            self.eval_envs, _ = get_hab_envs(self.config, './config.yaml',
+                    True, 1, spec_gpu=use_gpu)
 
         ppo_cfg = self.config.RL.PPO
         if (
@@ -401,7 +403,7 @@ class DDPPOTrainer(PPOTrainer):
                     window_episode_stats[k].append(stats[i].clone())
 
                 stats = torch.tensor(
-                    [value_loss, action_loss, count_steps_delta],
+                    [value_loss, action_loss, count_steps_delta, dist_entropy],
                     device=self.device,
                 )
                 distrib.all_reduce(stats)
@@ -413,6 +415,7 @@ class DDPPOTrainer(PPOTrainer):
                     losses = [
                         stats[0].item() / self.world_size,
                         stats[1].item() / self.world_size,
+                        stats[3].item() / self.world_size,
                     ]
                     deltas = {
                         k: (
@@ -442,7 +445,7 @@ class DDPPOTrainer(PPOTrainer):
 
                     writer.add_scalars(
                         "losses",
-                        {k: l for l, k in zip(losses, ["value", "policy"])},
+                        {k: l for l, k in zip(losses, ["value", "policy", 'entropy'])},
                         count_steps,
                     )
 
