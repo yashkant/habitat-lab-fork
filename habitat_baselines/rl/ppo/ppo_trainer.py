@@ -354,16 +354,16 @@ class PPOTrainer(BaseRLTrainer):
                 continue
 
             if isinstance(v, dict):
-                pass
-                #result.update(
-                #    {
-                #        k + "." + subk: subv
-                #        for subk, subv in cls._extract_scalars_from_info(
-                #            v
-                #        ).items()
-                #        if (k + "." + subk) not in cls.METRICS_BLACKLIST
-                #    }
-                #)
+                use_v = {k:dv for k, dv in v.items() if isinstance(k, str)}
+                result.update(
+                    {
+                        k + "." + subk: subv
+                        for subk, subv in cls._extract_scalars_from_info(
+                            use_v
+                        ).items()
+                        if (k + "." + subk) not in cls.METRICS_BLACKLIST
+                    }
+                )
             # Things that are scalar-like will have an np.size of 1.
             # Strings also have an np.size of 1, so explicitly ban those
             elif np.size(v) == 1 and not isinstance(v, str):
