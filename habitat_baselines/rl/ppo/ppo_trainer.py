@@ -233,11 +233,11 @@ class PPOTrainer(BaseRLTrainer):
                     running_episode_stats["count"]
                 )
 
-            try:
+            if v.shape[0] != masks.shape[0]:
+                print(k, "was different shape")
+                continue
+            else:
                 running_episode_stats[k] += (1 - masks) * v
-            except Exception as e:
-                print('Exception occured for key: ', k, 'with shape', v.shape, masks.shape)
-                raise e
 
         current_episode_reward *= masks
 

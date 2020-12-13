@@ -173,9 +173,7 @@ class DDPPOTrainer(PPOTrainer):
         self.world_size = distrib.get_world_size()
 
         self.config.defrost()
-        #os.environ["CUDA_VISIBLE_DEVICES"]=str(self.local_rank)
 
-        #use_gpu = 0
         use_gpu = self.local_rank
         self.config.TORCH_GPU_ID = use_gpu
         self.config.SIMULATOR_GPU_ID = use_gpu
@@ -190,7 +188,7 @@ class DDPPOTrainer(PPOTrainer):
         torch.manual_seed(self.config.TASK_CONFIG.SEED)
 
         if torch.cuda.is_available():
-            self.device = torch.device("cuda", 0)
+            self.device = torch.device("cuda", use_gpu)
             torch.cuda.set_device(self.device)
         else:
             self.device = torch.device("cpu")
