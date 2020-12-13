@@ -234,8 +234,8 @@ class PPOTrainer(BaseRLTrainer):
                 )
 
             if v.shape[0] != masks.shape[0]:
-                print(k, "was different shape")
-                continue
+                take = v.shape[0]
+                running_episode_stats[k][:take] += (1 - masks[:take])*v[:take]
             else:
                 running_episode_stats[k] += (1 - masks) * v
 
