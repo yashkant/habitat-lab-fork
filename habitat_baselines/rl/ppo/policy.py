@@ -187,8 +187,7 @@ class PointNavBaselineNet(Net):
 
         self._hidden_size = hidden_size
 
-        self.visual_encoder = SimpleCNN(observation_space, hidden_size,
-                obs_transform=None)
+        self.visual_encoder = SimpleCNN(observation_space, hidden_size)
 
         self.state_encoder = RNNStateEncoder(
             (0 if self.is_blind else self._hidden_size) + self._n_input_goal,

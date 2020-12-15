@@ -202,7 +202,7 @@ class PPOTrainer(BaseRLTrainer):
         t_step_env = time.time()
 
         profiling_wrapper.range_pop()  # compute actions
-        observations, rewards, dones, infos = self.envs.step(actions.cpu().numpy())
+        observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
 
         env_time += time.time() - t_step_env
 
