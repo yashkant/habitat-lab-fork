@@ -503,7 +503,7 @@ class PPOTrainer(BaseRLTrainer):
         eval_num_procs = self.eval_envs.num_envs
 
         # Load state from main actor critic algorithm.
-        eval_actor_critic = self._get_actor_critic(ppo_cfg)
+        eval_actor_critic = self._get_actor_critic()
         eval_actor_critic.to(self.device)
         eval_actor_critic.load_state_dict(self.actor_critic.state_dict())
 
@@ -541,6 +541,11 @@ class PPOTrainer(BaseRLTrainer):
         eval_actor_critic.eval()
 
         frames = []
+        succ_frames = []
+        fail_frames = []
+        num_succ = 0
+        num_fail = 0
+
         while (
             len(stats_episodes) < number_of_eval_episodes
             and self.eval_envs.num_envs > 0
@@ -561,8 +566,10 @@ class PPOTrainer(BaseRLTrainer):
 
                 prev_actions.copy_(actions)  # type: ignore
 
-            observations, rewards, dones, infos = self.eval_envs.step(actions.cpu().numpy())
-            if len(stats_episodes) < test_render_count:
+            observations, rewards_l, dones, infos = self.eval_envs.step(actions.cpu().numpy())
+            if config.TEST_RENDER_SUCC and (num_succ < test_render_count or num_fail < test_render_count):
+                frames.append(self.eval_envs.render())
+            elif not config.TEST_RENDER_SUCC and len(stats_episodes) < test_render_count:
                 frames.append(self.eval_envs.render())
 
             batch = batch_obs(observations, device=self.device)
@@ -589,6 +596,14 @@ class PPOTrainer(BaseRLTrainer):
                     )
                     current_episode_reward[i] = 0
                     stats_episodes.append(episode_stats)
+                    if config.TEST_RENDER_SUCC:
+                        if infos[0]['ep_success'] == 1 and num_succ < test_render_count:
+                            succ_frames.extend(frames)
+                            num_succ += 1
+                        elif infos[0]['ep_success'] == 0 and num_fail < test_render_count:
+                            fail_frames.extend(frames)
+                            num_fail += 1
+                        frames = []
 
         num_episodes = len(stats_episodes)
         aggregated_stats = dict()
@@ -610,9 +625,19 @@ class PPOTrainer(BaseRLTrainer):
         if len(metrics) > 0:
             writer.add_scalars("eval_metrics", metrics, step_id)
 
-        save_name = '%s_%s' % ('train', rutils.human_format_int(step_id))
-        save_mp4(frames, config.VIDEO_DIR, save_name,
-                 fps=config.VIDEO_FPS, no_frame_drop=True)
+        if config.TEST_RENDER_SUCC:
+            if len(succ_frames) > 0:
+                save_mp4(succ_frames, config.VIDEO_DIR,
+                        '%s_%s_succ' % ('train', rutils.human_format_int(step_id)),
+                        fps=config.VIDEO_FPS, no_frame_drop=True)
+            if len(fail_frames) > 0:
+                save_mp4(fail_frames, config.VIDEO_DIR,
+                        '%s_%s_fail' % ('train', rutils.human_format_int(step_id)),
+                        fps=config.VIDEO_FPS, no_frame_drop=True)
+        else:
+            save_mp4(frames, config.VIDEO_DIR,
+                    '%s_%s' % ('train', rutils.human_format_int(step_id)),
+                    fps=config.VIDEO_FPS, no_frame_drop=True)
 
 
 

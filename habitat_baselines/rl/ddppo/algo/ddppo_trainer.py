@@ -64,17 +64,19 @@ class DDPPOTrainer(PPOTrainer):
 
         super().__init__(config)
 
-    def _get_actor_critic(self, ppo_cfg):
-        return PointNavResNetPolicy(
-            observation_space=self.envs.observation_spaces[0],
-            action_space=self.envs.action_spaces[0],
-            hidden_size=ppo_cfg.hidden_size,
-            rnn_type=self.config.RL.DDPPO.rnn_type,
-            num_recurrent_layers=self.config.RL.DDPPO.num_recurrent_layers,
-            backbone=self.config.RL.DDPPO.backbone,
-            normalize_visual_inputs="rgb" in self.envs.observation_spaces[0].spaces,
-            obs_transform=None
+    def _get_actor_critic(self):
+        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
+        self.obs_transforms = get_active_obs_transforms(self.config)
+        observation_space = self.envs.observation_spaces[0]
+        observation_space = apply_obs_transforms_obs_space(
+            observation_space, self.obs_transforms
         )
+        actor_critic = policy.from_config(
+            self.config, observation_space, self.envs.action_spaces[0]
+        )
+        self.obs_space = observation_space
+        return actor_critic
+
 
     def _setup_actor_critic_agent(self, ppo_cfg: Config) -> None:
         r"""Sets up actor critic and agent for DD-PPO.
@@ -86,17 +88,7 @@ class DDPPOTrainer(PPOTrainer):
             None
         """
         logger.add_filehandler(self.config.LOG_FILE)
-
-        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
-        self.obs_transforms = get_active_obs_transforms(self.config)
-        observation_space = self.envs.observation_spaces[0]
-        observation_space = apply_obs_transforms_obs_space(
-            observation_space, self.obs_transforms
-        )
-        self.actor_critic = policy.from_config(
-            self.config, observation_space, self.envs.action_spaces[0]
-        )
-        self.obs_space = observation_space
+        self.actor_critic = self._get_actor_critic()
         self.actor_critic.to(self.device)
 
         if (
