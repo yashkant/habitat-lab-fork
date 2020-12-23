@@ -191,9 +191,6 @@ class DDPPOTrainer(PPOTrainer):
         from method.orp_log_adapter import CustomLogger
         self.envs, args = get_hab_envs(self.config, './config.yaml', False,
                 spec_gpu=use_gpu)
-        if self.config.EVAL_INTERVAL != -1:
-            self.eval_envs, _ = get_hab_envs(self.config, './config.yaml',
-                    True, 1, spec_gpu=use_gpu)
 
         ppo_cfg = self.config.RL.PPO
         if (
@@ -478,8 +475,8 @@ class DDPPOTrainer(PPOTrainer):
                         )
                         count_checkpoints += 1
 
-                    if self.config.EVAL_INTERVAL > 0 and update > 0 and update % self.config.EVAL_INTERVAL == 0:
-                        self._eval_cur(writer, count_steps)
+                    #if self.config.EVAL_INTERVAL > 0 and update > 0 and update % self.config.EVAL_INTERVAL == 0:
+                    #    self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
 
