@@ -164,30 +164,36 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
         generated image of a single frame.
     """
     egocentric_view_l: List[np.ndarray] = []
-    if "rgb" in observation:
+    if 'high_rgb' in observation:
         rgb = observation["rgb"]
         if not isinstance(rgb, np.ndarray):
             rgb = rgb.cpu().numpy()
-
         egocentric_view_l.append(rgb)
+    else:
+        if "rgb" in observation:
+            rgb = observation["rgb"]
+            if not isinstance(rgb, np.ndarray):
+                rgb = rgb.cpu().numpy()
 
-    # draw depth map if observation has depth info
-    if "depth" in observation:
-        depth_map = observation["depth"].squeeze() * 255.0
-        if not isinstance(depth_map, np.ndarray):
-            depth_map = depth_map.cpu().numpy()
+            egocentric_view_l.append(rgb)
 
-        depth_map = depth_map.astype(np.uint8)
-        depth_map = np.stack([depth_map for _ in range(3)], axis=2)
-        egocentric_view_l.append(depth_map)
+        # draw depth map if observation has depth info
+        if "depth" in observation:
+            depth_map = observation["depth"].squeeze() * 255.0
+            if not isinstance(depth_map, np.ndarray):
+                depth_map = depth_map.cpu().numpy()
 
-    # add image goal if observation has image_goal info
-    if "imagegoal" in observation:
-        rgb = observation["imagegoal"]
-        if not isinstance(rgb, np.ndarray):
-            rgb = rgb.cpu().numpy()
+            depth_map = depth_map.astype(np.uint8)
+            depth_map = np.stack([depth_map for _ in range(3)], axis=2)
+            egocentric_view_l.append(depth_map)
 
-        egocentric_view_l.append(rgb)
+        # add image goal if observation has image_goal info
+        if "imagegoal" in observation:
+            rgb = observation["imagegoal"]
+            if not isinstance(rgb, np.ndarray):
+                rgb = rgb.cpu().numpy()
+
+            egocentric_view_l.append(rgb)
 
     assert (
         len(egocentric_view_l) > 0

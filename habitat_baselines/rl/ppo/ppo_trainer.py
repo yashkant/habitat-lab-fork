@@ -325,8 +325,11 @@ class PPOTrainer(BaseRLTrainer):
         if extra_state is not None:
             checkpoint["extra_state"] = extra_state
 
+        save_path = os.path.join(self.config.CHECKPOINT_FOLDER, file_name)
+        print('Checkpointed to ', save_path)
+
         torch.save(
-            checkpoint, os.path.join(self.config.CHECKPOINT_FOLDER, file_name)
+            checkpoint, save_path
         )
 
     def load_checkpoint(self, checkpoint_path: str, *args, **kwargs) -> Dict:
@@ -818,8 +821,8 @@ class PPOTrainer(BaseRLTrainer):
                         ),
                     )
                     count_checkpoints += 1
-                if update % self.config.EVAL_INTERVAL == 0:
-                    self._eval_cur(writer, count_steps)
+                #if update % self.config.EVAL_INTERVAL == 0:
+                #    self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
 
@@ -852,10 +855,31 @@ class PPOTrainer(BaseRLTrainer):
         else:
             config = self.config.clone()
 
-    def _eval_cur(self, writer, step_id):
-        config = self.config
+    def _eval_checkpoint(
+        self,
+        checkpoint_path: str,
+        writer: TensorboardWriter,
+        checkpoint_index: int = 0,
+    ) -> None:
+        r"""Evaluates a single checkpoint.
+
+        Args:
+            checkpoint_path: path of checkpoint
+            writer: tensorboard writer object for logging to tensorboard
+            checkpoint_index: index of cur checkpoint for logging
+
+        Returns:
+            None
+        """
+        # Map location CPU is almost always better than mapping to a CUDA device.
+        ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
+
+        if self.config.EVAL.USE_CKPT_CONFIG:
+            config = self._setup_eval_config(ckpt_dict["config"])
+        else:
+            config = self.config.clone()
+
         ppo_cfg = config.RL.PPO
-        eval_num_procs = self.eval_envs.num_envs
 
         #config.defrost()
         #config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
@@ -873,7 +897,7 @@ class PPOTrainer(BaseRLTrainer):
         self._init_envs(config)
         self._setup_actor_critic_agent(ppo_cfg)
 
-        observations = self.eval_envs.reset()
+        observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
         batch = apply_obs_transforms_batch(batch, self.obs_transforms)
 
@@ -899,7 +923,12 @@ class PPOTrainer(BaseRLTrainer):
             device=self.device,
             dtype=torch.bool,
         )
-        stats_episodes = []
+        stats_episodes: Dict[
+            Any, Any
+        ] = {}  # dict of dicts that stores stats per episode
+
+        rgb_frames = [
+            [] for _ in range(self.config.NUM_PROCESSES)]
 
         rgb_frames = [
             [] for _ in range(self.config.NUM_ENVIRONMENTS)
@@ -908,9 +937,17 @@ class PPOTrainer(BaseRLTrainer):
             os.makedirs(self.config.VIDEO_DIR, exist_ok=True)
 
         number_of_eval_episodes = self.config.TEST_EPISODE_COUNT
-        test_render_count = self.config.TEST_RENDER_COUNT
-        if test_render_count == -1:
-            test_render_count = number_of_eval_episodes
+        if number_of_eval_episodes == -1:
+            number_of_eval_episodes = sum(self.envs.number_of_episodes)
+        else:
+            total_num_eps = sum(self.envs.number_of_episodes)
+            if total_num_eps < number_of_eval_episodes:
+                logger.warn(
+                    f"Config specified {number_of_eval_episodes} eval episodes"
+                    ", dataset only has {total_num_eps}."
+                )
+                logger.warn(f"Evaluating with {total_num_eps} instead.")
+                number_of_eval_episodes = total_num_eps
 
         pbar = tqdm.tqdm(total=number_of_eval_episodes)
         eval_actor_critic.eval()
@@ -918,15 +955,17 @@ class PPOTrainer(BaseRLTrainer):
         frames = []
         while (
             len(stats_episodes) < number_of_eval_episodes
-            and self.eval_envs.num_envs > 0
+            and self.envs.num_envs > 0
         ):
+            current_episodes = self.envs.current_episodes()
+
             with torch.no_grad():
                 (
                     _,
                     actions,
                     _,
                     test_recurrent_hidden_states,
-                ) = eval_actor_critic.act(
+                ) = self.actor_critic.act(
                     batch,
                     test_recurrent_hidden_states,
                     prev_actions,
@@ -934,7 +973,7 @@ class PPOTrainer(BaseRLTrainer):
                     deterministic=False,
                 )
 
-                prev_actions.copy_(actions)  # type: ignore
+                prev_actions.copy_(actions)
 
             observations, rewards, dones, infos = self.eval_envs.step(actions.cpu().numpy())
             if len(stats_episodes) < test_render_count:
@@ -953,11 +992,20 @@ class PPOTrainer(BaseRLTrainer):
                 rewards_l, dtype=torch.float, device="cpu"
             ).unsqueeze(1)
             current_episode_reward += rewards
-            for i in range(eval_num_procs):
+            next_episodes = self.envs.current_episodes()
+            envs_to_pause = []
+            n_envs = self.envs.num_envs
+            for i in range(n_envs):
+                if (
+                    next_episodes[i].scene_id,
+                    next_episodes[i].episode_id,
+                ) in stats_episodes:
+                    envs_to_pause.append(i)
+
                 # episode ended
                 if not not_done_masks[i].item():
                     pbar.update()
-                    episode_stats = {}
+                    episode_stats = dict()
                     episode_stats["reward"] = current_episode_reward[i].item()
                     episode_stats.update(
                         self._extract_scalars_from_info(infos[i])
@@ -1014,19 +1062,24 @@ class PPOTrainer(BaseRLTrainer):
 
         num_episodes = len(stats_episodes)
         aggregated_stats = dict()
-        for stat_key in next(iter(stats_episodes)).keys():
+        for stat_key in next(iter(stats_episodes.values())).keys():
             aggregated_stats[stat_key] = (
-                sum([v[stat_key] for v in stats_episodes])
+                sum([v[stat_key] for v in stats_episodes.values()])
                 / num_episodes
             )
 
         for k, v in aggregated_stats.items():
             logger.info(f"Average episode {k}: {v:.4f}")
 
+        step_id = checkpoint_index
+        if "extra_state" in ckpt_dict and "step" in ckpt_dict["extra_state"]:
+            step_id = ckpt_dict["extra_state"]["step"]
+
         writer.add_scalars(
             "eval_reward",
             {"average reward": aggregated_stats["reward"]},
-            step_id)
+            step_id,
+        )
 
         metrics = {k: v for k, v in aggregated_stats.items() if k != "reward"}
         if len(metrics) > 0:

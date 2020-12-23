@@ -96,7 +96,34 @@ class BaseTrainer:
         #with TensorboardWriter(
         #    self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
         #) as writer:
-        with CustomLogger(not self.config.no_wb, args) as writer:
+        import sys
+        sys.path.insert(0, './')
+        from orp_env_adapter import get_hab_args
+        from method.orp_log_adapter import CustomLogger
+        args = get_hab_args(self.config, './config.yaml')
+
+        if self.config.EVAL_CONCUR:
+            found_f = None
+            timeout_seconds = 60 / 2
+            i = 0
+            look_prefix = self.config.PREFIX.split('-')[-1]
+            while found_f is None and i < timeout_seconds:
+                for f in os.listdir(self.config.EVAL_CKPT_PATH_DIR):
+                    if look_prefix in f:
+                        found_f = f
+                        break
+                print('Could not find', look_prefix, 'waiting...')
+                time.sleep(2)
+                i+= 1
+            if found_f is None:
+                raise ValueError('Timed out waiting for checkpoint directory to be created')
+            self.config.defrost()
+            self.config.EVAL_CKPT_PATH_DIR = os.path.join(
+                    self.config.EVAL_CKPT_PATH_DIR, found_f)
+            self.config.freeze()
+            print('Found out folder ', self.config.EVAL_CKPT_PATH_DIR)
+
+        with CustomLogger(not self.config.no_wb, args, self.config) as writer:
             if os.path.isfile(self.config.EVAL_CKPT_PATH_DIR):
                 # evaluate singe checkpoint
                 proposed_index = get_checkpoint_id(
