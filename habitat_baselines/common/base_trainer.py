@@ -109,7 +109,7 @@ class BaseTrainer:
             look_prefix = self.config.PREFIX.split('-')[-1]
             while found_f is None and i < timeout_seconds:
                 for f in os.listdir(self.config.EVAL_CKPT_PATH_DIR):
-                    if look_prefix in f:
+                    if look_prefix in f and 'eval' not in f:
                         found_f = f
                         break
                 print('Could not find', look_prefix, 'waiting...')

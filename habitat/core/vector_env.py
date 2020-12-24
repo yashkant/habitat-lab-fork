@@ -543,7 +543,8 @@ class VectorEnv:
         for write_fn in self._connection_write_fns:
             write_fn((RENDER_COMMAND, (args, {"mode": "rgb", **kwargs})))
         images = [read_fn() for read_fn in self._connection_read_fns]
-        tile = tile_images(images)
+        #tile = tile_images(images)
+        tile = images
         if mode == "human":
             from habitat.core.utils import try_cv2_import
 

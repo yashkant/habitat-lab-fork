@@ -995,6 +995,7 @@ class PPOTrainer(BaseRLTrainer):
             next_episodes = self.envs.current_episodes()
             envs_to_pause = []
             n_envs = self.envs.num_envs
+            frames = self.envs.render()
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,
@@ -1022,7 +1023,7 @@ class PPOTrainer(BaseRLTrainer):
                     if len(self.config.VIDEO_OPTION) > 0:
                         generate_video(
                             video_option=self.config.VIDEO_OPTION,
-                            video_dir=self.config.VIDEO_DIR,
+                            video_dir=use_video_dir,
                             images=rgb_frames[i],
                             episode_id=current_episodes[i].episode_id,
                             checkpoint_idx=checkpoint_index,

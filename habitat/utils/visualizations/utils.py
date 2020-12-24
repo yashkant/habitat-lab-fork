@@ -130,7 +130,7 @@ def images_to_video(
         **kwargs,
     )
     logger.info(f"Video created: {os.path.join(output_dir, video_name)}")
-    for im in tqdm.tqdm(images):
+    for im in images:
         writer.append_data(im)
     writer.close()
 
@@ -165,7 +165,7 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     """
     egocentric_view_l: List[np.ndarray] = []
     if 'high_rgb' in observation:
-        rgb = observation["rgb"]
+        rgb = observation["high_rgb"]
         if not isinstance(rgb, np.ndarray):
             rgb = rgb.cpu().numpy()
         egocentric_view_l.append(rgb)
