@@ -38,6 +38,15 @@ from habitat_baselines.utils.env_utils import construct_envs
 import rlf.rl.utils as rutils
 from rlf.exp_mgr.viz_utils import save_mp4
 
+def get_total_num_steps(checkpoint_idx, config):
+    # num_updates * num_steps_per_update
+    num_steps_per_update = config.NUM_PROCESSES * config.RL.PPO.num_steps
+    num_updates = config.CHECKPOINT_INTERVAL * (checkpoint_idx+1)
+    total_num_steps =  num_steps_per_update * num_updates
+    return total_num_steps
+
+
+
 @baseline_registry.register_trainer(name="ppo")
 class PPOTrainer(BaseRLTrainer):
     r"""Trainer class for PPO algorithm
@@ -206,7 +215,6 @@ class PPOTrainer(BaseRLTrainer):
 
         profiling_wrapper.range_pop()  # compute actions
         observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
-
         env_time += time.time() - t_step_env
 
         t_update_stats = time.time()
@@ -236,11 +244,7 @@ class PPOTrainer(BaseRLTrainer):
                     running_episode_stats["count"]
                 )
 
-            if v.shape[0] != masks.shape[0]:
-                take = v.shape[0]
-                running_episode_stats[k][:take] += (1 - masks[:take])*v[:take]
-            else:
-                running_episode_stats[k] += (1 - masks) * v
+            running_episode_stats[k] += (1 - masks) * v
 
         current_episode_reward *= masks
 
@@ -477,7 +481,7 @@ class PPOTrainer(BaseRLTrainer):
                 # checkpoint model
                 if update % self.config.CHECKPOINT_INTERVAL == 0:
                     self.save_checkpoint(
-                        f"ckpt.{count_checkpoints}.pth", dict(step=count_steps)
+                        f"ckpt_{count_steps}.{count_checkpoints}.pth", dict(step=count_steps)
                     )
                     count_checkpoints += 1
                 #if update % self.config.EVAL_INTERVAL == 0:
@@ -580,7 +584,9 @@ class PPOTrainer(BaseRLTrainer):
 
         pbar = tqdm.tqdm(total=number_of_eval_episodes)
         self.actor_critic.eval()
-        use_video_dir = os.path.join(self.config.VIDEO_DIR, f"ckpt_{checkpoint_index}")
+        total_num_steps = get_total_num_steps(checkpoint_index, config)
+        use_video_dir = os.path.join(config.VIDEO_DIR,
+                f"ckpt_{checkpoint_index}_{total_num_steps}")
         if not os.path.exists(use_video_dir):
             os.makedirs(use_video_dir)
         start_num_envs = self.envs.num_envs

@@ -413,6 +413,11 @@ class DDPPOTrainer(PPOTrainer):
                         for k, v in window_episode_stats.items()
                     }
                     deltas["count"] = max(deltas["count"], 1.0)
+                    #if deltas['count'] != 1.0:
+                    #    print(window_episode_stats['reward'])
+                    #    print(window_episode_stats['episode.r'])
+                    #    print(window_episode_stats['ep_n_collisions'])
+                    #    print(window_episode_stats['ep_robo_scene_colls'])
 
                     writer.add_scalar(
                         "reward",
@@ -470,13 +475,9 @@ class DDPPOTrainer(PPOTrainer):
                     # checkpoint model
                     if update > 0 and update % self.config.CHECKPOINT_INTERVAL == 0:
                         self.save_checkpoint(
-                            f"ckpt.{count_checkpoints}.pth",
-                            dict(step=count_steps),
-                        )
+                            f"ckpt_{count_steps}.{count_checkpoints}.pth",
+                            dict(step=count_steps))
                         count_checkpoints += 1
-
-                    #if self.config.EVAL_INTERVAL > 0 and update > 0 and update % self.config.EVAL_INTERVAL == 0:
-                    #    self._eval_cur(writer, count_steps)
 
                 profiling_wrapper.range_pop()  # train update
 
