@@ -342,6 +342,8 @@ class DDPPOTrainer(PPOTrainer):
                 count_steps_delta = 0
                 self.agent.eval()
                 profiling_wrapper.range_push("rollouts loop")
+                env_time = 0
+                pth_time = 0
                 for step in range(ppo_cfg.num_steps):
 
                     (
@@ -413,11 +415,6 @@ class DDPPOTrainer(PPOTrainer):
                         for k, v in window_episode_stats.items()
                     }
                     deltas["count"] = max(deltas["count"], 1.0)
-                    #if deltas['count'] != 1.0:
-                    #    print(window_episode_stats['reward'])
-                    #    print(window_episode_stats['episode.r'])
-                    #    print(window_episode_stats['ep_n_collisions'])
-                    #    print(window_episode_stats['ep_robo_scene_colls'])
 
                     writer.add_scalar(
                         "reward",
