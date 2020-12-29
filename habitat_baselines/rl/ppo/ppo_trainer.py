@@ -879,6 +879,11 @@ class PPOTrainer(BaseRLTrainer):
         else:
             config = self.config.clone()
 
+        # Always keep the video directory the same.
+        config.defrost()
+        config.VIDEO_DIR = self.config.VIDEO_DIR
+        config.freeze()
+
         ppo_cfg = config.RL.PPO
 
         #config.defrost()

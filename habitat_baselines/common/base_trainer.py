@@ -104,7 +104,9 @@ class BaseTrainer:
 
         if self.config.EVAL_CONCUR:
             found_f = None
-            timeout_seconds = 60 / 2
+            #timeout_seconds = 60 / 2
+            # 30 mins
+            timeout_seconds = 60*30
             i = 0
             look_prefix = self.config.PREFIX.split('-')[-1]
             while found_f is None and i < timeout_seconds:
