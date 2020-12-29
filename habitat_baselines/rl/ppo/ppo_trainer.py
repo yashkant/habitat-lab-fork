@@ -38,14 +38,6 @@ from habitat_baselines.utils.env_utils import construct_envs
 import rlf.rl.utils as rutils
 from rlf.exp_mgr.viz_utils import save_mp4
 
-def get_total_num_steps(checkpoint_idx, config):
-    # num_updates * num_steps_per_update
-    num_steps_per_update = config.NUM_PROCESSES * config.RL.PPO.num_steps
-    num_updates = config.CHECKPOINT_INTERVAL * (checkpoint_idx+1)
-    total_num_steps =  num_steps_per_update * num_updates
-    return total_num_steps
-
-
 
 @baseline_registry.register_trainer(name="ppo")
 class PPOTrainer(BaseRLTrainer):
@@ -587,11 +579,14 @@ class PPOTrainer(BaseRLTrainer):
                 logger.warn(f"Evaluating with {total_num_eps} instead.")
                 number_of_eval_episodes = total_num_eps
 
+        step_id = checkpoint_index
+        if "extra_state" in ckpt_dict and "step" in ckpt_dict["extra_state"]:
+            step_id = ckpt_dict["extra_state"]["step"]
+
         pbar = tqdm.tqdm(total=number_of_eval_episodes)
         self.actor_critic.eval()
-        total_num_steps = get_total_num_steps(checkpoint_index, config)
         use_video_dir = os.path.join(config.VIDEO_DIR,
-                f"ckpt_{checkpoint_index}_{total_num_steps}")
+                "ckpt_%i_%i" % (checkpoint_index, int(step_id)))
         if not os.path.exists(use_video_dir):
             os.makedirs(use_video_dir)
 
@@ -644,6 +639,12 @@ class PPOTrainer(BaseRLTrainer):
                 ) in stats_episodes:
                     envs_to_pause.append(i)
 
+                # episode continues
+                # WE WANT TO RENDER THE FINAL EPISODE.
+                if len(self.config.VIDEO_OPTION) > 0:
+                    frame = frames[i]
+                    rgb_frames[i].append(frame)
+
                 # episode ended
                 if not_done_masks[i].item() == 0:
                     pbar.update()
@@ -681,11 +682,6 @@ class PPOTrainer(BaseRLTrainer):
 
                         rgb_frames[i] = []
 
-                # episode continues
-                elif len(self.config.VIDEO_OPTION) > 0:
-                    frame = frames[i]
-                    rgb_frames[i].append(frame)
-
             (
                 self.envs,
                 test_recurrent_hidden_states,
@@ -715,10 +711,6 @@ class PPOTrainer(BaseRLTrainer):
 
         for k, v in aggregated_stats.items():
             logger.info(f"Average episode {k}: {v:.4f}")
-
-        step_id = checkpoint_index
-        if "extra_state" in ckpt_dict and "step" in ckpt_dict["extra_state"]:
-            step_id = ckpt_dict["extra_state"]["step"]
 
         writer.add_scalars(
             "eval_reward",
