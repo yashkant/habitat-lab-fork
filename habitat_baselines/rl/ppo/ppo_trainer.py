@@ -954,6 +954,10 @@ class PPOTrainer(BaseRLTrainer):
                 logger.warn(f"Evaluating with {total_num_eps} instead.")
                 number_of_eval_episodes = total_num_eps
 
+        step_id = checkpoint_index
+        if "extra_state" in ckpt_dict and "step" in ckpt_dict["extra_state"]:
+            step_id = ckpt_dict["extra_state"]["step"]
+
         pbar = tqdm.tqdm(total=number_of_eval_episodes)
         eval_actor_critic.eval()
 
@@ -1007,6 +1011,12 @@ class PPOTrainer(BaseRLTrainer):
                     next_episodes[i].episode_id,
                 ) in stats_episodes:
                     envs_to_pause.append(i)
+
+                # episode continues
+                # WE WANT TO RENDER THE FINAL EPISODE.
+                if len(self.config.VIDEO_OPTION) > 0:
+                    frame = frames[i]
+                    rgb_frames[i].append(frame)
 
                 # episode ended
                 if not not_done_masks[i].item():
@@ -1076,10 +1086,6 @@ class PPOTrainer(BaseRLTrainer):
 
         for k, v in aggregated_stats.items():
             logger.info(f"Average episode {k}: {v:.4f}")
-
-        step_id = checkpoint_index
-        if "extra_state" in ckpt_dict and "step" in ckpt_dict["extra_state"]:
-            step_id = ckpt_dict["extra_state"]["step"]
 
         writer.add_scalars(
             "eval_reward",
