@@ -516,6 +516,11 @@ class PPOTrainer(BaseRLTrainer):
         else:
             config = self.config.clone()
 
+        # Always keep the video directory the same.
+        config.defrost()
+        config.VIDEO_DIR = self.config.VIDEO_DIR
+        config.freeze()
+
         ppo_cfg = config.RL.PPO
 
         config.defrost()
@@ -589,7 +594,6 @@ class PPOTrainer(BaseRLTrainer):
                 f"ckpt_{checkpoint_index}_{total_num_steps}")
         if not os.path.exists(use_video_dir):
             os.makedirs(use_video_dir)
-        start_num_envs = self.envs.num_envs
 
         while (
             len(stats_episodes) < number_of_eval_episodes

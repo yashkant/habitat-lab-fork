@@ -169,6 +169,7 @@ class DDPPOTrainer(PPOTrainer):
         use_gpu = self.local_rank
         self.config.TORCH_GPU_ID = use_gpu
         self.config.SIMULATOR_GPU_ID = use_gpu
+        self.config.N_TASKS = self.world_size
         # Multiply by the number of simulators to make sure they also get unique seeds
         self.config.TASK_CONFIG.SEED += (
             self.world_rank * self.config.NUM_PROCESSES
