@@ -127,6 +127,7 @@ class PointNavBaselinePolicy(Policy):
             observation_space=observation_space,
             action_space=action_space,
             hidden_size=config.RL.PPO.hidden_size,
+            fuse_states=config.RL.POLICY.fuse_states
         )
 
 
@@ -160,6 +161,7 @@ class PointNavBaselineNet(Net):
         self,
         observation_space: spaces.Dict,
         hidden_size: int,
+        fuse_states
     ):
         super().__init__()
 
@@ -183,7 +185,7 @@ class PointNavBaselineNet(Net):
             )
             self._n_input_goal = hidden_size
         else:
-            self.fuse_states = ["joint", "ee_pos"]
+            self.fuse_states = fuse_states
             self._n_input_goal = sum([observation_space.spaces[n].shape[0] for n in
                     self.fuse_states])
 
