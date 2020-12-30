@@ -1004,7 +1004,8 @@ class PPOTrainer(BaseRLTrainer):
             next_episodes = self.envs.current_episodes()
             envs_to_pause = []
             n_envs = self.envs.num_envs
-            frames = self.envs.render()
+            if len(use_video_option) > 0:
+                frames = self.envs.render()
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,
@@ -1014,7 +1015,7 @@ class PPOTrainer(BaseRLTrainer):
 
                 # episode continues
                 # WE WANT TO RENDER THE FINAL EPISODE.
-                if len(self.config.VIDEO_OPTION) > 0:
+                if len(use_video_option) > 0:
                     frame = frames[i]
                     rgb_frames[i].append(frame)
 
@@ -1037,7 +1038,7 @@ class PPOTrainer(BaseRLTrainer):
 
                     if len(self.config.VIDEO_OPTION) > 0:
                         generate_video(
-                            video_option=self.config.VIDEO_OPTION,
+                            video_option=use_video_option,
                             video_dir=use_video_dir,
                             images=rgb_frames[i],
                             episode_id=current_episodes[i].episode_id,
@@ -1047,6 +1048,12 @@ class PPOTrainer(BaseRLTrainer):
                         )
 
                         rgb_frames[i] = []
+                        if self.config.VIDEO_MAX_RENDER > 0 and cur_render > self.config.VIDEO_MAX_RENDER:
+                            # Turn off rendering.
+                            self.config.defrost()
+                            use_video_option = []
+                            self.config.freeze()
+                        cur_render += 1
 
                 # episode continues
                 elif len(self.config.VIDEO_OPTION) > 0:
