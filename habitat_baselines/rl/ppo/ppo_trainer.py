@@ -590,6 +590,8 @@ class PPOTrainer(BaseRLTrainer):
         if not os.path.exists(use_video_dir):
             os.makedirs(use_video_dir)
 
+        cur_render = 0
+        use_video_option = self.config.VIDEO_OPTION[:]
         while (
             len(stats_episodes) < number_of_eval_episodes
             and self.envs.num_envs > 0
@@ -631,7 +633,8 @@ class PPOTrainer(BaseRLTrainer):
             next_episodes = self.envs.current_episodes()
             envs_to_pause = []
             n_envs = self.envs.num_envs
-            frames = self.envs.render()
+            if len(use_video_option) > 0:
+                frames = self.envs.render()
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,
@@ -641,7 +644,7 @@ class PPOTrainer(BaseRLTrainer):
 
                 # episode continues
                 # WE WANT TO RENDER THE FINAL EPISODE.
-                if len(self.config.VIDEO_OPTION) > 0:
+                if len(use_video_option) > 0:
                     frame = frames[i]
                     rgb_frames[i].append(frame)
 
@@ -662,7 +665,7 @@ class PPOTrainer(BaseRLTrainer):
                         )
                     ] = episode_stats
 
-                    if len(self.config.VIDEO_OPTION) > 0:
+                    if len(use_video_option) > 0:
                         # only the important metrics can make it in the video
                         # filename
                         fname_metrics = {
@@ -671,7 +674,7 @@ class PPOTrainer(BaseRLTrainer):
                                 if k in ['ep_success']
                                 }
                         generate_video(
-                            video_option=self.config.VIDEO_OPTION,
+                            video_option=use_video_option,
                             video_dir=use_video_dir,
                             images=rgb_frames[i],
                             episode_id=current_episodes[i].episode_id,
@@ -681,6 +684,12 @@ class PPOTrainer(BaseRLTrainer):
                         )
 
                         rgb_frames[i] = []
+                        if self.config.VIDEO_MAX_RENDER > 0 and cur_render > self.config.VIDEO_MAX_RENDER:
+                            # Turn off rendering.
+                            self.config.defrost()
+                            use_video_option = []
+                            self.config.freeze()
+                        cur_render += 1
 
             (
                 self.envs,
