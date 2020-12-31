@@ -531,10 +531,16 @@ class PPOTrainer(BaseRLTrainer):
         config.freeze()
 
         use_video_option = self.config.VIDEO_OPTION[:]
-        setup_eval_env = True
         if (checkpoint_index+1) % config.CHECKPOINT_RENDER_INTERVAL != 0:
             use_video_option = []
-            setup_eval_env = False
+            config.defrost()
+            config.hab_high_render = False
+            config.freeze()
+        else:
+            config.defrost()
+            config.hab_high_render = True
+            config.freeze()
+
         if len(use_video_option) > 0:
             config.defrost()
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
@@ -547,8 +553,8 @@ class PPOTrainer(BaseRLTrainer):
             tmp_policy = baseline_registry.get_policy(self.config.RL.POLICY.name)(config)
         else:
             tmp_policy = None
-        self.envs, args = get_hab_envs(self.config, './config.yaml',
-                setup_eval_env, setup_policy=tmp_policy)
+        self.envs, args = get_hab_envs(config, './config.yaml',
+                True, setup_policy=tmp_policy)
 
         self._setup_actor_critic_agent(ppo_cfg)
         self.agent.load_state_dict(ckpt_dict["state_dict"])
@@ -610,7 +616,7 @@ class PPOTrainer(BaseRLTrainer):
         self.actor_critic.eval()
         use_video_dir = os.path.join(config.VIDEO_DIR,
                 "ckpt_%i_%i" % (checkpoint_index, int(step_id)))
-        if not os.path.exists(use_video_dir):
+        if len(use_video_option) > 0 and not os.path.exists(use_video_dir):
             os.makedirs(use_video_dir)
 
         cur_render = 0
