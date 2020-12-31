@@ -519,7 +519,13 @@ class PPOTrainer(BaseRLTrainer):
         config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
         config.freeze()
 
-        if len(self.config.VIDEO_OPTION) > 0:
+        use_video_option = self.config.VIDEO_OPTION[:]
+        setup_eval_env = True
+        import ipdb; ipdb.set_trace()
+        if (checkpoint_index+1) % config.CHECKPOINT_RENDER_INTERVAL != 0:
+            use_video_option = []
+            setup_eval_env = False
+        if len(use_video_option) > 0:
             config.defrost()
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
@@ -528,7 +534,8 @@ class PPOTrainer(BaseRLTrainer):
         logger.info(f"env config: {config}")
         #self.envs = construct_envs(config, get_env_class(config.ENV_NAME))
         from orp_env_adapter import get_hab_envs
-        self.envs, _ = get_hab_envs(self.config, './config.yaml', True)
+        self.envs, _ = get_hab_envs(self.config, './config.yaml',
+                setup_eval_env)
         self._setup_actor_critic_agent(ppo_cfg)
 
         self.agent.load_state_dict(ckpt_dict["state_dict"])
@@ -563,7 +570,7 @@ class PPOTrainer(BaseRLTrainer):
         rgb_frames = [
             [] for _ in range(self.config.NUM_PROCESSES)]
 
-        if len(self.config.VIDEO_OPTION) > 0:
+        if len(use_video_option) > 0:
             os.makedirs(self.config.VIDEO_DIR, exist_ok=True)
 
         number_of_eval_episodes = self.config.TEST_EPISODE_COUNT
@@ -591,7 +598,6 @@ class PPOTrainer(BaseRLTrainer):
             os.makedirs(use_video_dir)
 
         cur_render = 0
-        use_video_option = self.config.VIDEO_OPTION[:]
         while (
             len(stats_episodes) < number_of_eval_episodes
             and self.envs.num_envs > 0
