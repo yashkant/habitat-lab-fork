@@ -126,7 +126,13 @@ class BaseTrainer:
             print('Found out folder ', self.config.EVAL_CKPT_PATH_DIR)
 
         with CustomLogger(not self.config.no_wb, args, self.config) as writer:
-            if os.path.isfile(self.config.EVAL_CKPT_PATH_DIR):
+            if self.config.EVAL.EMPTY:
+                self._eval_checkpoint(
+                    self.config.EVAL_CKPT_PATH_DIR,
+                    writer,
+                    checkpoint_index=0,
+                )
+            elif os.path.isfile(self.config.EVAL_CKPT_PATH_DIR):
                 # evaluate singe checkpoint
                 proposed_index = get_checkpoint_id(
                     self.config.EVAL_CKPT_PATH_DIR

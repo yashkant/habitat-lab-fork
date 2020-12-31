@@ -37,7 +37,11 @@ from habitat_baselines.utils.env_utils import construct_envs
 
 import rlf.rl.utils as rutils
 from rlf.exp_mgr.viz_utils import save_mp4
+import torch.nn as nn
 
+import sys
+sys.path.insert(0, './')
+from method.orp_policy_adapter import HabPolicy
 
 @baseline_registry.register_trainer(name="ppo")
 class PPOTrainer(BaseRLTrainer):
@@ -500,8 +504,15 @@ class PPOTrainer(BaseRLTrainer):
         Returns:
             None
         """
-        # Map location CPU is almost always better than mapping to a CUDA device.
-        ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
+        if self.config.EVAL.EMPTY:
+            ckpt_dict = {
+                    'state_dict': {
+                        'actor_critic.dummy_param': nn.Parameter(torch.tensor([0.0]))
+                        }
+                    }
+        else:
+            # Map location CPU is almost always better than mapping to a CUDA device.
+            ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
 
         if self.config.EVAL.USE_CKPT_CONFIG:
             config = self._setup_eval_config(ckpt_dict["config"])
@@ -521,7 +532,6 @@ class PPOTrainer(BaseRLTrainer):
 
         use_video_option = self.config.VIDEO_OPTION[:]
         setup_eval_env = True
-        import ipdb; ipdb.set_trace()
         if (checkpoint_index+1) % config.CHECKPOINT_RENDER_INTERVAL != 0:
             use_video_option = []
             setup_eval_env = False
@@ -531,15 +541,21 @@ class PPOTrainer(BaseRLTrainer):
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
             config.freeze()
 
-        logger.info(f"env config: {config}")
-        #self.envs = construct_envs(config, get_env_class(config.ENV_NAME))
+        #logger.info(f"env config: {config}")
         from orp_env_adapter import get_hab_envs
-        self.envs, _ = get_hab_envs(self.config, './config.yaml',
-                setup_eval_env)
-        self._setup_actor_critic_agent(ppo_cfg)
+        if self.config.EVAL.EMPTY:
+            tmp_policy = baseline_registry.get_policy(self.config.RL.POLICY.name)(config)
+        else:
+            tmp_policy = None
+        self.envs, args = get_hab_envs(self.config, './config.yaml',
+                setup_eval_env, setup_policy=tmp_policy)
 
+        self._setup_actor_critic_agent(ppo_cfg)
         self.agent.load_state_dict(ckpt_dict["state_dict"])
         self.actor_critic = self.agent.actor_critic
+
+        if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
+            self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)

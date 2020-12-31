@@ -29,12 +29,13 @@ class Policy(nn.Module, metaclass=abc.ABCMeta):
         super().__init__()
         self.net = net
 
-        self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
+        if net is not None:
+            self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
 
-        #self.action_distribution = CategoricalNet(
-        #    self.net.output_size, self.dim_actions
-        #)
-        self.critic = CriticHead(self.net.output_size)
+            #self.action_distribution = CategoricalNet(
+            #    self.net.output_size, self.dim_actions
+            #)
+            self.critic = CriticHead(self.net.output_size)
 
     def forward(self, *x):
         raise NotImplementedError

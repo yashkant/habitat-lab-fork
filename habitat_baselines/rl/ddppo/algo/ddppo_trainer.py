@@ -46,6 +46,10 @@ from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
 from habitat_baselines.utils.common import batch_obs, linear_decay
 from habitat_baselines.utils.env_utils import construct_envs
 
+import sys
+sys.path.insert(0, './')
+from method.orp_policy_adapter import HabPolicy
+
 
 @baseline_registry.register_trainer(name="ddppo")
 class DDPPOTrainer(PPOTrainer):
