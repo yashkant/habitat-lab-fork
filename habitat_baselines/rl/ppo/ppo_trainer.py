@@ -51,6 +51,7 @@ from habitat_baselines.utils.env_utils import construct_envs
 
 import rlf.rl.utils as rutils
 from rlf.exp_mgr.viz_utils import save_mp4
+import torch.nn as nn
 
 @baseline_registry.register_trainer(name="ddppo")
 @baseline_registry.register_trainer(name="ppo")
@@ -871,8 +872,15 @@ class PPOTrainer(BaseRLTrainer):
         Returns:
             None
         """
-        # Map location CPU is almost always better than mapping to a CUDA device.
-        ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
+        if self.config.EVAL.EMPTY:
+            ckpt_dict = {
+                    'state_dict': {
+                        'actor_critic.dummy_param': nn.Parameter(torch.tensor([0.0]))
+                        }
+                    }
+        else:
+            # Map location CPU is almost always better than mapping to a CUDA device.
+            ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
 
         if self.config.EVAL.USE_CKPT_CONFIG:
             config = self._setup_eval_config(ckpt_dict["config"])
@@ -901,6 +909,9 @@ class PPOTrainer(BaseRLTrainer):
 
         self._init_envs(config)
         self._setup_actor_critic_agent(ppo_cfg)
+
+        if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
+            self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
