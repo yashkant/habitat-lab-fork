@@ -537,6 +537,7 @@ class PPOTrainer(BaseRLTrainer):
             config.hab_high_render = False
             config.freeze()
         else:
+            print('Rendering')
             config.defrost()
             config.hab_high_render = True
             config.freeze()
@@ -562,6 +563,7 @@ class PPOTrainer(BaseRLTrainer):
 
         if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
             self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
+            self.agent.actor_critic.set_env_ref(self.envs)
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
