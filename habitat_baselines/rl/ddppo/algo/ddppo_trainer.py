@@ -152,7 +152,8 @@ class DDPPOTrainer(PPOTrainer):
         self.local_rank, tcp_store = init_distrib_slurm(
             self.config.RL.DDPPO.distrib_backend
         )
-        add_signal_handlers()
+        if 'IS_RAY' in self.config and not self.config.IS_RAY:
+            add_signal_handlers()
 
         profiling_wrapper.configure(
             capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,
@@ -484,3 +485,4 @@ class DDPPOTrainer(PPOTrainer):
                 profiling_wrapper.range_pop()  # train update
 
             self.envs.close()
+            return metrics

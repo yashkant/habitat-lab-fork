@@ -55,9 +55,9 @@ def execute_exp(config: Config, run_type: str) -> None:
     trainer = trainer_init(config)
 
     if run_type == "train":
-        trainer.train()
+        return trainer.train()
     elif run_type == "eval":
-        trainer.eval()
+        return trainer.eval()
 
 
 def run_exp(exp_config: str, run_type: str, opts=None) -> None:
