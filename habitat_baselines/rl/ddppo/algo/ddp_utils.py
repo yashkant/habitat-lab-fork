@@ -138,6 +138,10 @@ def init_distrib_slurm(
 
     master_port = int(os.environ.get("MASTER_PORT", DEFAULT_PORT))
     master_addr = os.environ.get("MASTER_ADDR", DEFAULT_MASTER_ADDR)
+    if SLURM_JOBID is not None:
+        master_port += int(SLURM_JOBID) % int(
+            os.environ.get("MASTER_PORT_RANGE", DEFAULT_PORT_RANGE)
+        )
 
     # Check to see if we should parse from torch.distributed.launch
     if os.environ.get("LOCAL_RANK", None) is not None:
