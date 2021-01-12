@@ -928,6 +928,11 @@ class PPOTrainer(BaseRLTrainer):
             ppo_cfg.hidden_size,
             device=self.device,
         )
+
+        if self.is_simple_env():
+            ac_shape = 1
+        else:
+            ac_shape = self.envs.action_spaces[0].shape[0]
         prev_actions = torch.zeros(
             self.config.NUM_ENVIRONMENTS,
             1,
@@ -1017,7 +1022,7 @@ class PPOTrainer(BaseRLTrainer):
             envs_to_pause = []
             n_envs = self.envs.num_envs
             if len(use_video_option) > 0:
-                frames = self.envs.render()
+                frames = self.envs.render(mode='rgb_array')
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,

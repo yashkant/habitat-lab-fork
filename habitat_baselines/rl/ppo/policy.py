@@ -24,6 +24,7 @@ from habitat_baselines.utils.common import CategoricalNet
 
 import rlf.policies.utils as putils
 import rlf.rl.utils as rutils
+from habitat.core.spaces import ActionSpace
 
 
 class Policy(nn.Module, metaclass=abc.ABCMeta):
@@ -32,11 +33,14 @@ class Policy(nn.Module, metaclass=abc.ABCMeta):
         self.net = net
 
         if net is not None:
-            self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
+            if isinstance(action_space, ActionSpace):
+                self.action_distribution = CategoricalNet(
+                    self.net.output_size, action_space.n
+                )
+                #self.action_distribution = putils.get_def_dist((self.net.output_size,), spaces.Discrete(action_space.n))
+            else:
+                self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
 
-            #self.action_distribution = CategoricalNet(
-            #    self.net.output_size, self.dim_actions
-            #)
             self.critic = CriticHead(self.net.output_size)
 
     def forward(self, *x):
