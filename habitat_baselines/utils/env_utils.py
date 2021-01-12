@@ -65,10 +65,13 @@ def construct_envs(
             )
 
         if len(scenes) < num_processes:
-            raise RuntimeError(
-                "reduce the number of processes as there "
-                "aren't enough number of scenes"
-            )
+            # Hack to train with just one scene
+            assert len(scenes) == 1
+            scenes = [scenes[0] for _ in range(num_processes)]
+            #raise RuntimeError(
+            #    "reduce the number of processes as there "
+            #    "aren't enough number of scenes"
+            #)
 
         random.shuffle(scenes)
 
@@ -96,9 +99,16 @@ def construct_envs(
         proc_config.freeze()
         configs.append(proc_config)
 
-    envs = habitat.VectorEnv(
-        make_env_fn=make_env_fn,
-        env_fn_args=tuple(zip(configs, env_classes)),
-        workers_ignore_signals=workers_ignore_signals,
-    )
+    if config.IS_DEBUG_MODE:
+        envs = habitat.ThreadedVectorEnv(
+            make_env_fn=make_env_fn,
+            env_fn_args=tuple(zip(configs, env_classes)),
+            workers_ignore_signals=workers_ignore_signals,
+        )
+    else:
+        envs = habitat.VectorEnv(
+            make_env_fn=make_env_fn,
+            env_fn_args=tuple(zip(configs, env_classes)),
+            workers_ignore_signals=workers_ignore_signals,
+        )
     return envs

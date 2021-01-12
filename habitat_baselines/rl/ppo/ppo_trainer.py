@@ -178,6 +178,9 @@ class PPOTrainer(BaseRLTrainer):
 
         return results
 
+    def is_simple_env(self):
+        return self.config.ENV_NAME != 'Orp-v1'
+
     @profiling_wrapper.RangeContext("_collect_rollout_step")
     def _collect_rollout_step(
         self, rollouts, current_episode_reward, running_episode_stats
@@ -210,7 +213,17 @@ class PPOTrainer(BaseRLTrainer):
         t_step_env = time.time()
 
         profiling_wrapper.range_pop()  # compute actions
-        observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
+
+        if self.is_simple_env():
+            step_data = [a.item() for a in actions.to(device="cpu")]
+            outputs = self.envs.step(step_data)
+            observations, rewards_l, dones, infos = [
+                list(x) for x in zip(*outputs)
+            ]
+        else:
+            step_data = actions.cpu().numpy()
+            observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
+
         env_time += time.time() - t_step_env
 
         t_update_stats = time.time()
@@ -548,14 +561,23 @@ class PPOTrainer(BaseRLTrainer):
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
             config.freeze()
 
-        #logger.info(f"env config: {config}")
-        from orp_env_adapter import get_hab_envs
+        from orp_env_adapter import get_hab_envs, get_hab_args
+
         if self.config.EVAL.EMPTY:
             tmp_policy = baseline_registry.get_policy(self.config.RL.POLICY.name)(config)
         else:
             tmp_policy = None
-        self.envs, args = get_hab_envs(config, './config.yaml',
-                True, setup_policy=tmp_policy)
+
+        if self.is_simple_env():
+            args = get_hab_args(config, './config.yaml')
+            self.envs = construct_envs(
+                    config,
+                    get_env_class(config.ENV_NAME),
+                    workers_ignore_signals=True,
+                    )
+        else:
+            self.envs, args = get_hab_envs(config, './config.yaml',
+                    True, setup_policy=tmp_policy)
 
         self._setup_actor_critic_agent(ppo_cfg)
         self.agent.load_state_dict(ckpt_dict["state_dict"])
@@ -579,9 +601,14 @@ class PPOTrainer(BaseRLTrainer):
             ppo_cfg.hidden_size,
             device=self.device,
         )
+
+        if self.is_simple_env():
+            ac_shape = 1
+        else:
+            ac_shape = self.envs.action_spaces[0].shape[0]
         prev_actions = torch.zeros(
             self.config.NUM_PROCESSES,
-            self.envs.action_spaces[0].shape[0], device=self.device,
+            ac_shape, device=self.device,
             dtype=torch.long
         )
         not_done_masks = torch.zeros(
@@ -644,8 +671,13 @@ class PPOTrainer(BaseRLTrainer):
 
                 prev_actions.copy_(actions)
 
-            #outputs = self.envs.step([a[0].item() for a in actions])
-            observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
+            if self.is_simple_env():
+                outputs = self.envs.step([a[0].item() for a in actions])
+                observations, rewards_l, dones, infos = [
+                    list(x) for x in zip(*outputs)
+                ]
+            else:
+                observations, rewards_l, dones, infos = self.envs.step(actions.cpu().numpy())
 
             batch = batch_obs(observations, device=self.device)
             batch = apply_obs_transforms_batch(batch, self.obs_transforms)
@@ -664,7 +696,7 @@ class PPOTrainer(BaseRLTrainer):
             envs_to_pause = []
             n_envs = self.envs.num_envs
             if len(use_video_option) > 0:
-                frames = self.envs.render()
+                frames = self.envs.render(mode='rgb_array')
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,

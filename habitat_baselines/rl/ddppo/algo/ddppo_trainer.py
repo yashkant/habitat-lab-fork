@@ -49,7 +49,8 @@ from habitat_baselines.utils.env_utils import construct_envs
 import sys
 sys.path.insert(0, './')
 from method.orp_policy_adapter import HabPolicy
-
+from orp_env_adapter import get_hab_envs, get_hab_args
+from method.orp_log_adapter import CustomLogger
 
 @baseline_registry.register_trainer(name="ddppo")
 class DDPPOTrainer(PPOTrainer):
@@ -191,12 +192,17 @@ class DDPPOTrainer(PPOTrainer):
         else:
             self.device = torch.device("cpu")
 
-        import sys
-        sys.path.insert(0, './')
-        from orp_env_adapter import get_hab_envs
-        from method.orp_log_adapter import CustomLogger
-        self.envs, args = get_hab_envs(self.config, './config.yaml', False,
-                spec_gpu=use_gpu)
+        if not self.is_simple_env():
+            # Hack to import the rearrangement env.
+            self.envs, args = get_hab_envs(self.config, './config.yaml', False,
+                    spec_gpu=use_gpu)
+        else:
+            args = get_hab_args(self.config, './config.yaml', spec_gpu=use_gpu)
+            self.envs = construct_envs(
+                    self.config,
+                    get_env_class(self.config.ENV_NAME),
+                    workers_ignore_signals=True,
+                    )
 
         ppo_cfg = self.config.RL.PPO
         if (
