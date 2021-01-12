@@ -46,12 +46,6 @@ from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
 from habitat_baselines.utils.common import batch_obs, linear_decay
 from habitat_baselines.utils.env_utils import construct_envs
 
-import sys
-sys.path.insert(0, './')
-from method.orp_policy_adapter import HabPolicy
-from orp_env_adapter import get_hab_envs, get_hab_args
-from method.orp_log_adapter import CustomLogger
-
 @baseline_registry.register_trainer(name="ddppo")
 class DDPPOTrainer(PPOTrainer):
     # DD-PPO cuts rollouts short to mitigate the straggler effect
@@ -150,6 +144,13 @@ class DDPPOTrainer(PPOTrainer):
         Returns:
             None
         """
+
+        import sys
+        sys.path.insert(0, './')
+        from method.orp_policy_adapter import HabPolicy
+        from orp_env_adapter import get_hab_envs, get_hab_args
+        from method.orp_log_adapter import CustomLogger
+
         self.local_rank, tcp_store = init_distrib_slurm(
             self.config.RL.DDPPO.distrib_backend
         )
@@ -193,7 +194,6 @@ class DDPPOTrainer(PPOTrainer):
             self.device = torch.device("cpu")
 
         if not self.is_simple_env():
-            # Hack to import the rearrangement env.
             self.envs, args = get_hab_envs(self.config, './config.yaml', False,
                     spec_gpu=use_gpu)
         else:

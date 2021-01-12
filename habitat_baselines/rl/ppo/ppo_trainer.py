@@ -319,12 +319,9 @@ class PPOTrainer(BaseRLTrainer):
 
         from orp_env_adapter import get_hab_envs
         from method.orp_log_adapter import CustomLogger
-        if 'CUSTOM_LOAD' in self.config and self.config.CUSTOM_LOAD:
-            self.envs, args = get_hab_envs(self.config, './config.yaml', False)
-        else:
-            self.envs = construct_envs(
-                self.config, get_env_class(self.config.ENV_NAME)
-            )
+        self.envs = construct_envs(
+            self.config, get_env_class(self.config.ENV_NAME)
+        )
 
         ppo_cfg = self.config.RL.PPO
         self.device = (
