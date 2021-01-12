@@ -21,6 +21,11 @@ from habitat_baselines.utils.common import (
     poll_checkpoint_folder,
 )
 
+import sys
+sys.path.insert(0, './')
+from orp.dataset import OrpNavDatasetV0
+from orp.sim.simulator import OrpSim
+
 
 class BaseTrainer:
     r"""Generic trainer class that serves as a base template for more
