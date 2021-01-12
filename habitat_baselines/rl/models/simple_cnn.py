@@ -34,6 +34,11 @@ class SimpleCNN(nn.Module):
         else:
             self._n_input_depth = 0
 
+        if 'arm_rgb' in observation_space.spaces:
+            self._n_input_rgb += 3
+        if 'arm_depth' in observation_space.spaces:
+            self._n_input_depth += 1
+
         # kernel size for different CNN layers
         self._cnn_layers_kernel_size = [(8, 8), (4, 4), (3, 3)]
 
@@ -148,6 +153,11 @@ class SimpleCNN(nn.Module):
             # permute tensor to dimension [BATCH x CHANNEL x HEIGHT X WIDTH]
             depth_observations = depth_observations.permute(0, 3, 1, 2)
             cnn_input.append(depth_observations)
+
+        if 'arm_rgb' in observations:
+            cnn_input.append(observations['arm_rgb'].permute(0,3,1,2))
+        if 'arm_depth' in observations:
+            cnn_input.append(observations['arm_depth'].permute(0,3,1,2))
 
         cnn_inputs = torch.cat(cnn_input, dim=1)
 
