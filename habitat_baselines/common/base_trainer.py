@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, './')
 from orp.dataset import OrpNavDatasetV0
 from orp.sim.simulator import OrpSim
+from orp.env_aux import *
 
 
 class BaseTrainer:
