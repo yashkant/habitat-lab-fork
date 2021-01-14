@@ -33,7 +33,8 @@ from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
 from habitat_baselines.rl.ppo import Net, Policy
 from habitat_baselines.utils.common import Flatten
 import rlf.rl.utils as rutils
-
+from orp.env_aux import TargetPointGoalGPSAndCompassSensor
+from habitat.core.spaces import ActionSpace
 
 @baseline_registry.register_policy
 class PointNavResNetPolicy(Policy):
@@ -61,6 +62,7 @@ class PointNavResNetPolicy(Policy):
                 resnet_baseplanes=resnet_baseplanes,
                 normalize_visual_inputs=normalize_visual_inputs,
                 force_blind_policy=force_blind_policy,
+                **kwargs
             ),
             action_space,
         )
@@ -78,6 +80,7 @@ class PointNavResNetPolicy(Policy):
             backbone=config.RL.DDPPO.backbone,
             normalize_visual_inputs="rgb" in observation_space.spaces,
             force_blind_policy=config.FORCE_BLIND_POLICY,
+            fuse_states = config.RL.POLICY.fuse_states,
         )
 
 
@@ -198,15 +201,27 @@ class PointNavResNetNet(Net):
         backbone,
         resnet_baseplanes,
         normalize_visual_inputs: bool,
+        fuse_states,
         force_blind_policy: bool = False,
     ):
         super().__init__()
 
-        #self.prev_action_embedding = nn.Embedding(rutils.get_ac_dim(action_space) + 1, 32)
-        #self._n_prev_action = 32
-        self._n_prev_action = action_space.shape[0]
+        if isinstance(action_space, ActionSpace):
+            self.prev_action_embedding = nn.Embedding(action_space.n + 1, 32)
+            self._n_prev_action = 32
+        else:
+            # No embedding for continuous actions
+            self.prev_action_embedding = lambda x: x
+            self._n_prev_action = action_space.shape[0]
+
         rnn_input_size = self._n_prev_action
 
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
+            n_input_goal = observation_space.spaces[
+                TargetPointGoalGPSAndCompassSensor.cls_uuid
+            ].shape[0] + 1
+            self.tgt_embeding = nn.Linear(n_input_goal, 32)
+            rnn_input_size += 32
         if (
             IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             in observation_space.spaces
@@ -293,10 +308,12 @@ class PointNavResNetNet(Net):
             )
 
             rnn_input_size += hidden_size
+
         # FUSE PROPRIOCEPTIVE STATE
-        self.fuse_states = ["joint", "ee_pos"]
-        rnn_input_size += sum([observation_space.spaces[n].shape[0] for n in
-                self.fuse_states])
+        self.fuse_states = fuse_states
+        if len(fuse_states) > 0:
+            rnn_input_size += sum([observation_space.spaces[n].shape[0] for n in
+                    self.fuse_states])
 
         self._hidden_size = hidden_size
 
@@ -354,6 +371,21 @@ class PointNavResNetNet(Net):
 
             visual_feats = self.visual_fc(visual_feats)
             x.append(visual_feats)
+
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observations:
+            goal_observations = observations[
+                TargetPointGoalGPSAndCompassSensor.cls_uuid
+            ]
+            goal_observations = torch.stack(
+                [
+                    goal_observations[:, 0],
+                    torch.cos(-goal_observations[:, 1]),
+                    torch.sin(-goal_observations[:, 1]),
+                ],
+                -1,
+            )
+
+            x.append(self.tgt_embeding(goal_observations))
 
         if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
             goal_observations = observations[
@@ -415,13 +447,13 @@ class PointNavResNetNet(Net):
             goal_output = self.goal_visual_encoder({"rgb": goal_image})
             x.append(self.goal_visual_fc(goal_output))
 
-        # always append the fuse states.
-        x.append(torch.cat([observations[k] for k in self.fuse_states],
-            dim=-1))
+        if len(self.fuse_states):
+            x.append(torch.cat([observations[k] for k in self.fuse_states],
+                dim=-1))
 
-        #prev_actions = self.prev_action_embedding(
-        #    ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
-        #)
+        prev_actions = self.prev_action_embedding(
+            ((prev_actions.float() + 1) * masks).long().squeeze(dim=-1)
+        )
         x.append(prev_actions)
 
         out = torch.cat(x, dim=1)

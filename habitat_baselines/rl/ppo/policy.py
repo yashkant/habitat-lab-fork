@@ -23,6 +23,7 @@ from habitat_baselines.utils.common import CategoricalNet
 import rlf.policies.utils as putils
 import rlf.rl.utils as rutils
 from habitat.core.spaces import ActionSpace
+from orp.env_aux import TargetPointGoalGPSAndCompassSensor
 
 
 class Policy(nn.Module, metaclass=abc.ABCMeta):
@@ -168,7 +169,11 @@ class PointNavBaselineNet(Net):
     ):
         super().__init__()
 
-        if (
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
+            self._n_input_goal = observation_space.spaces[
+                TargetPointGoalGPSAndCompassSensor.cls_uuid
+            ].shape[0]
+        elif (
             IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             in observation_space.spaces
         ):
@@ -216,11 +221,12 @@ class PointNavBaselineNet(Net):
         return self.state_encoder.num_recurrent_layers
 
     def forward(self, observations, rnn_hidden_states, prev_actions, masks):
-        if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observations:
+            target_encoding = observations[TargetPointGoalGPSAndCompassSensor.cls_uuid]
+        elif IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
             target_encoding = observations[
                 IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             ]
-
         elif PointGoalSensor.cls_uuid in observations:
             target_encoding = observations[PointGoalSensor.cls_uuid]
         elif ImageGoalSensor.cls_uuid in observations:

@@ -694,7 +694,8 @@ class PPOTrainer(BaseRLTrainer):
             n_envs = self.envs.num_envs
             if len(use_video_option) > 0:
                 if self.is_simple_env():
-                    frames = observations_to_image(observations, infos)
+                    frames = [observations_to_image(observations[i], infos[i])
+                            for i in range(len(infos))]
                 else:
                     frames = self.envs.render(mode='rgb_array')
             for i in range(n_envs):
@@ -704,16 +705,23 @@ class PPOTrainer(BaseRLTrainer):
                 ) in stats_episodes:
                     envs_to_pause.append(i)
 
-                # episode continues
-                # WE WANT TO RENDER THE FINAL FRAME.
+                # WE WANT TO RENDER THE FINAL FRAME. But only for manip tasks
+                # since we display statistics at the end.
                 if len(use_video_option) > 0:
                     frame = frames[i]
-                    rgb_frames[i].append(frame)
+                    if self.is_simple_env():
+                        if not_done_masks[i].item() != 0:
+                            rgb_frames[i].append(np.flip(frame,0))
+                    else:
+                        rgb_frames[i].append(frame)
 
                 # episode ended
                 if not_done_masks[i].item() == 0:
                     pbar.update()
                     episode_stats = dict()
+                    if hasattr(self.actor_critic, 'mod_policy'):
+                        # Stats from the modular policy such as failed modules.
+                        episode_stats.update(self.actor_critic.mod_policy.get_fsm_data())
                     episode_stats["reward"] = current_episode_reward[i].item()
                     episode_stats.update(
                         self._extract_scalars_from_info(infos[i])
