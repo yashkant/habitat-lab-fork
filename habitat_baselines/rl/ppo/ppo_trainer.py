@@ -693,7 +693,10 @@ class PPOTrainer(BaseRLTrainer):
             envs_to_pause = []
             n_envs = self.envs.num_envs
             if len(use_video_option) > 0:
-                frames = self.envs.render(mode='rgb_array')
+                if self.is_simple_env():
+                    frames = observations_to_image(observations, infos)
+                else:
+                    frames = self.envs.render(mode='rgb_array')
             for i in range(n_envs):
                 if (
                     next_episodes[i].scene_id,
@@ -702,7 +705,7 @@ class PPOTrainer(BaseRLTrainer):
                     envs_to_pause.append(i)
 
                 # episode continues
-                # WE WANT TO RENDER THE FINAL EPISODE.
+                # WE WANT TO RENDER THE FINAL FRAME.
                 if len(use_video_option) > 0:
                     frame = frames[i]
                     rgb_frames[i].append(frame)
@@ -730,7 +733,7 @@ class PPOTrainer(BaseRLTrainer):
                         fname_metrics = {
                                 k: v
                                 for k, v in self._extract_scalars_from_info(infos[i]).items()
-                                if k in ['ep_success', 'ep_constraint_violate']
+                                if k in ['ep_success', 'ep_constraint_violate', 'spl']
                                 }
                         generate_video(
                             video_option=use_video_option,
