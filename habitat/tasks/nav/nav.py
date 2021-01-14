@@ -862,16 +862,18 @@ class TopDownMap(Measure):
         }
 
     def get_polar_angle(self):
+        # CHANGED BY ANDREW SZOT FOR FETCH ROBOT
         agent_state = self._sim.get_agent_state()
         # quaternion is in x, y, z, w format
         ref_rotation = agent_state.rotation
 
         heading_vector = quaternion_rotate_vector(
-            ref_rotation.inverse(), np.array([0, 0, -1])
+            ref_rotation.inverse(), np.array([0, 0, 1])
         )
 
-        phi = cartesian_to_polar(-heading_vector[2], heading_vector[0])[1]
-        z_neg_z_flip = np.pi
+        phi = cartesian_to_polar(heading_vector[2], heading_vector[0])[1]
+        #z_neg_z_flip = np.pi
+        z_neg_z_flip = np.pi/2.0
         return np.array(phi) + z_neg_z_flip
 
     def update_map(self, agent_position):
