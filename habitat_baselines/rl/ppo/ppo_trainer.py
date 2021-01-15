@@ -1050,7 +1050,12 @@ class PPOTrainer(BaseRLTrainer):
                     episode_stats = dict()
                     if hasattr(self.actor_critic, 'mod_policy'):
                         # Stats from the modular policy such as failed modules.
-                        episode_stats.update(self.actor_critic.mod_policy.get_fsm_data())
+                        fsm_dat = self.actor_critic.mod_policy.get_fsm_data()
+                        if infos[i]['ep_success'] == 1.0:
+                            # Nothing could have been a failure
+                            fsm_dat = {k: 0.0 if 'failure' in k else v
+                                    for k, v in fsm_dat.items()}
+                        episode_stats.update(fsm_dat)
                     episode_stats["reward"] = current_episode_reward[i].item()
                     episode_stats.update(
                         self._extract_scalars_from_info(infos[i])
