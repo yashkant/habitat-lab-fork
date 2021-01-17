@@ -215,6 +215,7 @@ class PointNavResNetNet(Net):
             self._n_prev_action = action_space.shape[0]
 
         rnn_input_size = self._n_prev_action
+        n_input_goal = 0
 
         if TargetPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
             n_input_goal = observation_space.spaces[
@@ -311,9 +312,11 @@ class PointNavResNetNet(Net):
 
         # FUSE PROPRIOCEPTIVE STATE
         self.fuse_states = fuse_states
-        if len(fuse_states) > 0:
+        if n_input_goal == 0 and len(fuse_states) > 0:
             rnn_input_size += sum([observation_space.spaces[n].shape[0] for n in
                     self.fuse_states])
+        else:
+            self.fuse_states = []
 
         self._hidden_size = hidden_size
 
@@ -447,7 +450,7 @@ class PointNavResNetNet(Net):
             goal_output = self.goal_visual_encoder({"rgb": goal_image})
             x.append(self.goal_visual_fc(goal_output))
 
-        if len(self.fuse_states):
+        if len(self.fuse_states) > 0:
             x.append(torch.cat([observations[k] for k in self.fuse_states],
                 dim=-1))
 

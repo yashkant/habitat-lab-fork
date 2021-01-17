@@ -789,7 +789,7 @@ class PPOTrainer(BaseRLTrainer):
         aggregated_stats = dict()
         for stat_key in next(iter(stats_episodes.values())).keys():
             aggregated_stats[stat_key] = (
-                sum([v[stat_key] for v in stats_episodes.values()])
+                sum([v[stat_key] for v in stats_episodes.values() if stat_key in v])
                 / num_episodes
             )
 
