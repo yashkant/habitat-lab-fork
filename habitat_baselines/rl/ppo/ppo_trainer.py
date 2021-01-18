@@ -746,7 +746,8 @@ class PPOTrainer(BaseRLTrainer):
                         fname_metrics = {
                                 k: v
                                 for k, v in self._extract_scalars_from_info(infos[i]).items()
-                                if k in ['ep_success', 'ep_constraint_violate', 'spl']
+                                if k in ['ep_success', 'ep_constraint_violate',
+                                    'spl', 'ep_accum_force_end']
                                 }
                         generate_video(
                             video_option=use_video_option,
