@@ -749,6 +749,7 @@ class PPOTrainer(BaseRLTrainer):
                                 if k in ['ep_success', 'ep_constraint_violate',
                                     'spl', 'ep_accum_force_end']
                                 }
+                        fname_metrics['reward'] = episode_stats['reward']
                         generate_video(
                             video_option=use_video_option,
                             video_dir=use_video_dir,
