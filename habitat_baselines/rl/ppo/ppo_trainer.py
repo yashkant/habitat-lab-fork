@@ -183,7 +183,8 @@ class PPOTrainer(BaseRLTrainer):
 
     @profiling_wrapper.RangeContext("_collect_rollout_step")
     def _collect_rollout_step(
-        self, rollouts, current_episode_reward, running_episode_stats
+        self, rollouts, current_episode_reward, running_episode_stats,
+        running_episode_counts
     ):
         pth_time = 0.0
         env_time = 0.0
@@ -244,16 +245,28 @@ class PPOTrainer(BaseRLTrainer):
         current_episode_reward += rewards
         running_episode_stats["reward"] += (1 - masks) * current_episode_reward  # type: ignore
         running_episode_stats["count"] += 1 - masks  # type: ignore
-        for k, v_k in self._extract_scalars_from_infos(infos).items():
-            v = torch.tensor(
-                v_k, dtype=torch.float, device=current_episode_reward.device
-            ).unsqueeze(1)
-            if k not in running_episode_stats:
-                running_episode_stats[k] = torch.zeros_like(
-                    running_episode_stats["count"]
-                )
 
-            running_episode_stats[k] += (1 - masks) * v
+        for i in range(len(infos)):
+            if masks[i] != 0:
+                continue
+            for k, v in self._extract_scalars_from_info(infos[i]).items():
+                if k not in running_episode_stats:
+                    running_episode_stats[k] = torch.zeros_like(
+                        running_episode_stats["count"]
+                    )
+                running_episode_stats[k][i] += v
+                running_episode_counts[k] += 1
+
+        #for k, v_k in self._extract_scalars_from_infos(infos).items():
+        #    v = torch.tensor(
+        #        v_k, dtype=torch.float, device=current_episode_reward.device
+        #    ).unsqueeze(1)
+        #    if k not in running_episode_stats:
+        #        running_episode_stats[k] = torch.zeros_like(
+        #            running_episode_stats["count"]
+        #        )
+
+        #    running_episode_stats[k] += (1 - masks) * v
 
         current_episode_reward *= masks
 
@@ -614,6 +627,7 @@ class PPOTrainer(BaseRLTrainer):
         stats_episodes: Dict[
             Any, Any
         ] = {}  # dict of dicts that stores stats per episode
+        stats_counts = defaultdict(lambda: 0)
 
         rgb_frames = [
             [] for _ in range(self.config.NUM_PROCESSES)]
@@ -728,9 +742,12 @@ class PPOTrainer(BaseRLTrainer):
                                     for k, v in fsm_dat.items()}
                         episode_stats.update(fsm_dat)
                     episode_stats["reward"] = current_episode_reward[i].item()
+                    extracted = self._extract_scalars_from_info(infos[i])
                     episode_stats.update(
-                        self._extract_scalars_from_info(infos[i])
+                        extracted
                     )
+                    for k in extracted:
+                        stats_counts[k] += 1
                     current_episode_reward[i] = 0
                     # use scene_id + episode_id as unique id for storing stats
                     stats_episodes[
@@ -790,9 +807,14 @@ class PPOTrainer(BaseRLTrainer):
         num_episodes = len(stats_episodes)
         aggregated_stats = dict()
         for stat_key in next(iter(stats_episodes.values())).keys():
+            if stat_key in ['reward', 'count']:
+                use_count = num_episodes
+            else:
+                use_count = stats_counts[stat_key]
+
             aggregated_stats[stat_key] = (
                 sum([v[stat_key] for v in stats_episodes.values() if stat_key in v])
-                / num_episodes
+                / use_count
             )
 
         for k, v in aggregated_stats.items():
