@@ -246,27 +246,28 @@ class PPOTrainer(BaseRLTrainer):
         running_episode_stats["reward"] += (1 - masks) * current_episode_reward  # type: ignore
         running_episode_stats["count"] += 1 - masks  # type: ignore
 
-        for i in range(len(infos)):
-            if masks[i] != 0:
-                continue
-            for k, v in self._extract_scalars_from_info(infos[i]).items():
-                if k not in running_episode_stats:
-                    running_episode_stats[k] = torch.zeros_like(
-                        running_episode_stats["count"]
-                    )
-                running_episode_stats[k][i] += v
-                running_episode_counts[k] += 1
+        #for i in range(len(infos)):
+        #    if masks[i] != 0:
+        #        continue
+        #    for k, v in self._extract_scalars_from_info(infos[i]).items():
+        #        if k not in running_episode_stats:
+        #            running_episode_stats[k] = torch.zeros_like(
+        #                running_episode_stats["count"]
+        #            )
+        #        running_episode_stats[k][i] += v
+        #        import ipdb; ipdb.set_trace()
 
-        #for k, v_k in self._extract_scalars_from_infos(infos).items():
-        #    v = torch.tensor(
-        #        v_k, dtype=torch.float, device=current_episode_reward.device
-        #    ).unsqueeze(1)
-        #    if k not in running_episode_stats:
-        #        running_episode_stats[k] = torch.zeros_like(
-        #            running_episode_stats["count"]
-        #        )
+        for k, v_k in self._extract_scalars_from_infos(infos).items():
+            v = torch.tensor(
+                v_k, dtype=torch.float, device=current_episode_reward.device
+            ).unsqueeze(1)
+            if k not in running_episode_stats:
+                running_episode_stats[k] = torch.zeros_like(
+                    running_episode_stats["count"]
+                )
 
-        #    running_episode_stats[k] += (1 - masks) * v
+            running_episode_stats[k] += (1 - masks) * v
+            running_episode_counts[k] += 1
 
         current_episode_reward *= masks
 
