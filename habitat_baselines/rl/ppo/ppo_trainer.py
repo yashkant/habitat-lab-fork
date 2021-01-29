@@ -268,7 +268,7 @@ class PPOTrainer(BaseRLTrainer):
                 running_episode_stats[k] = torch.zeros_like(
                     running_episode_stats["count"]
                 )
-            running_episode_stats[k] += (1 - masks[sel_masks]) * v
+            running_episode_stats[k][sel_masks] += (1 - masks[sel_masks]) * v
             running_episode_counts[k] += 1
 
         current_episode_reward *= masks
