@@ -258,6 +258,9 @@ class PPOTrainer(BaseRLTrainer):
         #        import ipdb; ipdb.set_trace()
 
         for k, v_k in self._extract_scalars_from_infos(infos).items():
+            sel_masks = [k in info for info in infos]
+            if sum(sel_masks) == 0:
+                continue
             v = torch.tensor(
                 v_k, dtype=torch.float, device=current_episode_reward.device
             ).unsqueeze(1)
@@ -265,8 +268,7 @@ class PPOTrainer(BaseRLTrainer):
                 running_episode_stats[k] = torch.zeros_like(
                     running_episode_stats["count"]
                 )
-
-            running_episode_stats[k] += (1 - masks) * v
+            running_episode_stats[k] += (1 - masks[sel_masks]) * v
             running_episode_counts[k] += 1
 
         current_episode_reward *= masks
