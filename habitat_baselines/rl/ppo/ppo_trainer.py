@@ -254,8 +254,6 @@ class PPOTrainer(BaseRLTrainer):
                         running_episode_stats["count"]
                         )
 
-            if masks.shape[0] != v.shape[0]:
-                print(infos)
             running_episode_stats[k] += (1 - masks) * v
 
         current_episode_reward *= masks

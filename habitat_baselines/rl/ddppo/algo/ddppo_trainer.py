@@ -481,16 +481,16 @@ class DDPPOTrainer(PPOTrainer):
                                 update, env_time, pth_time, count_steps
                             )
                         )
-                        logger.info(
-                            "Average window size: {}  {}".format(
-                                len(window_episode_stats["count"]),
-                                "  ".join(
-                                    "{}: {:.3f}".format(k, v / deltas["count"])
-                                    for k, v in deltas.items()
-                                    if k != "count"
-                                ),
-                            )
-                        )
+                        #logger.info(
+                        #    "Average window size: {}  {}".format(
+                        #        len(window_episode_stats["count"]),
+                        #        "  ".join(
+                        #            "{}: {:.3f}".format(k, v / deltas["count"])
+                        #            for k, v in deltas.items()
+                        #            if k != "count"
+                        #        ),
+                        #    )
+                        #)
 
                     # checkpoint model
                     if update > 0 and update % self.config.CHECKPOINT_INTERVAL == 0:
