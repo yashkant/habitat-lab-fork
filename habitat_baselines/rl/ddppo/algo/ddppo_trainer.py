@@ -272,7 +272,6 @@ class DDPPOTrainer(PPOTrainer):
             count=torch.zeros(self.envs.num_envs, 1, device=self.device),
             reward=torch.zeros(self.envs.num_envs, 1, device=self.device),
         )
-        running_episode_counts = defaultdict(lambda: 0)
         window_episode_stats: DefaultDict[str, deque] = defaultdict(
             lambda: deque(maxlen=ppo_cfg.reward_window_size)
         )
@@ -365,7 +364,7 @@ class DDPPOTrainer(PPOTrainer):
                         delta_steps,
                     ) = self._collect_rollout_step(
                         rollouts, current_episode_reward,
-                        running_episode_stats, running_episode_counts
+                        running_episode_stats
                     )
                     pth_time += delta_pth_time
                     env_time += delta_env_time
@@ -439,8 +438,17 @@ class DDPPOTrainer(PPOTrainer):
 
                     # Check to see if there are any metrics
                     # that haven't been logged yet
+                    def get_key_count(k):
+                        if '/' in k:
+                            scene_name = k.split('/')[0]
+                            count_key = scene_name + '_COUNT'
+                            if count_key in deltas:
+                                return max(deltas[count_key],1.0)
+                        return deltas['count']
                     metrics = {
-                        k: v / running_episode_counts[k]
+                        #k: v / max(running_episode_counts[k],1.0)
+                        k: v / get_key_count(k)
+                        #k: v / deltas['count']
                         for k, v in deltas.items()
                         if k not in {"reward", "count"}
                     }
