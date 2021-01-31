@@ -829,6 +829,7 @@ class PPOTrainer(BaseRLTrainer):
 
             self.envs.close()
 
+
     def _eval_checkpoint(
         self,
         checkpoint_path: str,
@@ -914,6 +915,10 @@ class PPOTrainer(BaseRLTrainer):
             self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
             self.agent.actor_critic.set_env_ref(self.envs)
 
+        if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
+            self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
+            self.agent.actor_critic.set_env_ref(self.envs)
+
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
         batch = apply_obs_transforms_batch(batch, self.obs_transforms)
@@ -948,6 +953,7 @@ class PPOTrainer(BaseRLTrainer):
         stats_episodes: Dict[
             Any, Any
         ] = {}  # dict of dicts that stores stats per episode
+        stats_counts = defaultdict(lambda: 0)
 
         rgb_frames = [
             [] for _ in range(self.config.NUM_PROCESSES)]
@@ -1057,9 +1063,12 @@ class PPOTrainer(BaseRLTrainer):
                                     for k, v in fsm_dat.items()}
                         episode_stats.update(fsm_dat)
                     episode_stats["reward"] = current_episode_reward[i].item()
+                    extracted = self._extract_scalars_from_info(infos[i])
                     episode_stats.update(
-                        self._extract_scalars_from_info(infos[i])
+                        extracted
                     )
+                    for k in extracted:
+                        stats_counts[k] += 1
                     current_episode_reward[i] = 0
                     # use scene_id + episode_id as unique id for storing stats
                     stats_episodes[
@@ -1069,14 +1078,23 @@ class PPOTrainer(BaseRLTrainer):
                         )
                     ] = episode_stats
 
-                    if len(self.config.VIDEO_OPTION) > 0:
+                    if len(use_video_option) > 0:
+                        # only the important metrics can make it in the video
+                        # filename
+                        fname_metrics = {
+                                k: v
+                                for k, v in self._extract_scalars_from_info(infos[i]).items()
+                                if k in ['ep_success', 'ep_constraint_violate',
+                                    'spl', 'ep_accum_force_end']
+                                }
+                        fname_metrics['reward'] = episode_stats['reward']
                         generate_video(
                             video_option=use_video_option,
                             video_dir=use_video_dir,
                             images=rgb_frames[i],
                             episode_id=current_episodes[i].episode_id,
                             checkpoint_idx=checkpoint_index,
-                            metrics=self._extract_scalars_from_info(infos[i]),
+                            metrics=fname_metrics,
                             tb_writer=writer,
                         )
 
@@ -1119,6 +1137,11 @@ class PPOTrainer(BaseRLTrainer):
         num_episodes = len(stats_episodes)
         aggregated_stats = dict()
         for stat_key in next(iter(stats_episodes.values())).keys():
+            if stat_key in ['reward', 'count']:
+                use_count = num_episodes
+            else:
+                use_count = stats_counts[stat_key]
+
             aggregated_stats[stat_key] = (
                 sum([v[stat_key] for v in stats_episodes.values() if stat_key in v])
                 / num_episodes
