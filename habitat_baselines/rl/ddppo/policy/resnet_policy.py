@@ -33,7 +33,6 @@ from habitat_baselines.rl.models.rnn_state_encoder import (
     build_rnn_state_encoder,
 )
 from habitat_baselines.rl.ppo import Net, Policy
-from habitat_baselines.utils.common import Flatten
 import rlf.rl.utils as rutils
 from orp.env_aux import TargetPointGoalGPSAndCompassSensor
 from habitat.core.spaces import ActionSpace

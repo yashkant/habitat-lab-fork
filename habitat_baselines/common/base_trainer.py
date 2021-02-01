@@ -99,9 +99,6 @@ class BaseTrainer:
                 len(self.config.VIDEO_DIR) > 0
             ), "Must specify a directory for storing videos on disk"
 
-        #with TensorboardWriter(
-        #    self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
-        #) as writer:
         import sys
         sys.path.insert(0, './')
         from orp_env_adapter import get_hab_args
