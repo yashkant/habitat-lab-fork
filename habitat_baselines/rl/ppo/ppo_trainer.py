@@ -53,11 +53,6 @@ import rlf.rl.utils as rutils
 from rlf.exp_mgr.viz_utils import save_mp4
 import torch.nn as nn
 
-import sys
-sys.path.insert(0, './')
-from method.orp_policy_adapter import HabPolicy
-from orp_env_adapter import get_hab_envs, get_hab_args
-from method.orp_log_adapter import CustomLogger
 
 @baseline_registry.register_trainer(name="ddppo")
 @baseline_registry.register_trainer(name="ppo")
@@ -187,6 +182,9 @@ class PPOTrainer(BaseRLTrainer):
         )
 
     def _init_envs(self, is_eval, config=None):
+        import sys
+        sys.path.insert(0, './')
+        from orp_env_adapter import get_hab_envs, get_hab_args
         if config is None:
             config = self.config
 
@@ -740,6 +738,9 @@ class PPOTrainer(BaseRLTrainer):
             ]
 
         ppo_cfg = self.config.RL.PPO
+        import sys
+        sys.path.insert(0, './')
+        from method.orp_log_adapter import CustomLogger
 
         with (
             CustomLogger(not self.config.no_wb, self.args, self.config)
@@ -897,6 +898,9 @@ class PPOTrainer(BaseRLTrainer):
         Returns:
             None
         """
+        import sys
+        sys.path.insert(0, './')
+        from method.orp_policy_adapter import HabPolicy
         if self.config.EVAL.EMPTY:
             ckpt_dict = {
                     'state_dict': {
