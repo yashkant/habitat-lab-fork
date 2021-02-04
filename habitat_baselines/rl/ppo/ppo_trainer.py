@@ -901,6 +901,10 @@ class PPOTrainer(BaseRLTrainer):
         import sys
         sys.path.insert(0, './')
         from method.orp_policy_adapter import HabPolicy
+
+        if self._is_distributed:
+            raise RuntimeError("Evaluation does not support distributed mode")
+
         if self.config.EVAL.EMPTY:
             ckpt_dict = {
                     'state_dict': {
@@ -916,16 +920,13 @@ class PPOTrainer(BaseRLTrainer):
         else:
             config = self.config.clone()
 
-        # Always keep the video directory the same.
         config.defrost()
+        # Always keep the video directory the same.
         config.VIDEO_DIR = self.config.VIDEO_DIR
+        config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
         config.freeze()
 
         ppo_cfg = config.RL.PPO
-
-        config.defrost()
-        config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
-        config.freeze()
 
         use_video_option = self.config.VIDEO_OPTION[:]
         if (checkpoint_index+1) % config.CHECKPOINT_RENDER_INTERVAL != 0:
@@ -951,12 +952,13 @@ class PPOTrainer(BaseRLTrainer):
         self._init_envs(config, True)
         self._setup_actor_critic_agent(ppo_cfg)
 
-        if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
-            self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
-            self.agent.actor_critic.set_env_ref(self.envs)
+        self.agent.load_state_dict(ckpt_dict["state_dict"])
+        self.actor_critic = self.agent.actor_critic
 
         if self.actor_critic is not None and isinstance(self.agent.actor_critic, HabPolicy):
-            self.agent.actor_critic.init(self.envs.observation_spaces[0], self.envs.action_spaces[0], args)
+            # For custom policy.
+            self.agent.actor_critic.init(self.envs.observation_spaces[0],
+                    self.envs.action_spaces[0], self.args)
             self.agent.actor_critic.set_env_ref(self.envs)
 
         observations = self.envs.reset()
@@ -973,11 +975,6 @@ class PPOTrainer(BaseRLTrainer):
             ppo_cfg.hidden_size,
             device=self.device,
         )
-
-        if self.is_simple_env():
-            ac_shape = 1
-        else:
-            ac_shape = self.envs.action_spaces[0].shape[0]
 
         if self.is_simple_env():
             ac_shape = 1
@@ -1001,9 +998,6 @@ class PPOTrainer(BaseRLTrainer):
             Any, Any
         ] = {}  # dict of dicts that stores stats per episode
         stats_counts = defaultdict(lambda: 0)
-
-        rgb_frames = [
-            [] for _ in range(self.config.NUM_PROCESSES)]
 
         rgb_frames = [
             [] for _ in range(self.config.NUM_ENVIRONMENTS)
