@@ -631,8 +631,15 @@ class PPOTrainer(BaseRLTrainer):
 
         # Check to see if there are any metrics
         # that haven't been logged yet
+        def get_k_count(k):
+            scene_name = k.split('/')[0]
+            count_k = scene_name + '_COUNT'
+            if count_k in deltas:
+                return max(deltas[count_k], 1.0)
+            else:
+                return deltas['count']
         metrics = {
-            k: v / deltas["count"]
+            k: v / get_k_count(k)
             for k, v in deltas.items()
             if k not in {"reward", "count"}
         }
