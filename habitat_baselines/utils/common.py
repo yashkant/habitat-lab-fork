@@ -193,7 +193,10 @@ def generate_video(
 
     metric_strs = []
     for k, v in metrics.items():
-        metric_strs.append(f"{k}={v:.2f}")
+        if isinstance(v, str):
+            metric_strs.append(f"{k}={v}")
+        else:
+            metric_strs.append(f"{k}={v:.2f}")
 
     video_name = f"episode={episode_id}-ckpt={checkpoint_idx}-" + "-".join(
         metric_strs

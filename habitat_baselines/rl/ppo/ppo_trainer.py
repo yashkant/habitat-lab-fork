@@ -908,6 +908,7 @@ class PPOTrainer(BaseRLTrainer):
         import sys
         sys.path.insert(0, './')
         from method.orp_policy_adapter import HabPolicy
+        from orp_env_adapter import ALL_SCENES
 
         if self._is_distributed:
             raise RuntimeError("Evaluation does not support distributed mode")
@@ -1148,6 +1149,10 @@ class PPOTrainer(BaseRLTrainer):
                                     'spl', 'ep_accum_force_end']
                                 }
                         fname_metrics['reward'] = episode_stats['reward']
+                        if 'scene_name' in infos[i]:
+                            scene_name = ALL_SCENES[infos[i]['scene_name']]
+                            fname_metrics['name'] = scene_name
+
                         generate_video(
                             video_option=use_video_option,
                             video_dir=use_video_dir,
