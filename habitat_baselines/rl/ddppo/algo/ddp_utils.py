@@ -27,6 +27,7 @@ DEFAULT_MASTER_ADDR = "127.0.0.1"
 DEFAULT_PORT_RANGE = 127
 
 SLURM_JOBID = os.environ.get("SLURM_JOB_ID", None)
+MULTI_PROC_OFFSET = os.environ.get("MULTI_PROC_OFFSET", None)
 INTERRUPTED_STATE_FILE = osp.join(
     os.environ["HOME"], ".interrupted_states", f"{SLURM_JOBID}.pth"
 )
@@ -238,16 +239,14 @@ def init_distrib_slurm(
 
     local_rank, world_rank, world_size = get_distrib_size()
 
+    master_addr = os.environ.get("MASTER_ADDR", DEFAULT_MASTER_ADDR)
     master_port = int(os.environ.get("MASTER_PORT", DEFAULT_PORT))
     if SLURM_JOBID is not None:
         master_port += int(SLURM_JOBID) % int(
             os.environ.get("MASTER_PORT_RANGE", DEFAULT_PORT_RANGE)
         )
-    master_addr = os.environ.get("MASTER_ADDR", DEFAULT_MASTER_ADDR)
-    if SLURM_JOBID is not None:
-        master_port += int(SLURM_JOBID) % int(
-            os.environ.get("MASTER_PORT_RANGE", DEFAULT_PORT_RANGE)
-        )
+    if MULTI_PROC_OFFSET is not None:
+        master_port += int(MULTI_PROC_OFFSET)
 
     tcp_store = distrib.TCPStore(  # type: ignore
         master_addr, master_port, world_size, world_rank == 0
