@@ -189,9 +189,12 @@ class PPOTrainer(BaseRLTrainer):
             config = self.config
 
         if not self.is_simple_env():
+            policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
+            policy = policy(self.config)
             self.envs, args = get_hab_envs(self.config, './config.yaml',
                     is_eval,
-                    spec_gpu=self.config.TORCH_GPU_ID)
+                    spec_gpu=self.config.TORCH_GPU_ID,
+                    setup_policy=policy)
         else:
             args = get_hab_args(self.config, './config.yaml', spec_gpu=self.config.TORCH_GPU_ID)
             self.envs = construct_envs(
@@ -959,7 +962,7 @@ class PPOTrainer(BaseRLTrainer):
         if config.VERBOSE:
             logger.info(f"env config: {config}")
 
-        self._init_envs(config, True)
+        self._init_envs(True, config)
         self._setup_actor_critic_agent(ppo_cfg)
 
         self.agent.load_state_dict(ckpt_dict["state_dict"])

@@ -171,17 +171,30 @@ class BaseTrainer:
 
     def _eval_checkpoint_nodes(self, checkpoint_path, writer,
             checkpoint_index):
-        eval_node = self.config.TASK_CONFIG.EVAL_NODE
-        if isinstance(eval_node, str):
-            eval_nodes = eval(eval_node)
-            assert isinstance(eval_nodes, list), 'Eval nodes must be a list'
+        if 'EVAL_NODE' in self.config:
+            if isinstance(self.config.EVAL_NODE, str):
+                eval_nodes = eval(self.config.EVAL_NODE)
+                assert isinstance(eval_nodes, list), 'Eval nodes must be a list'
+            elif isinstance(self.config.EVAL_NODE, list):
+                eval_nodes = self.config.EVAL_NODE
+            else:
+                eval_nodes = [self.config.EVAL_NODE]
         else:
-            eval_nodes = [self.config.TASK_CONFIG.EVAL_NODE]
+            eval_nodes = [None]
+
+        orig_hab_set = self.config.hab_set
+        import ipdb; ipdb.set_trace()
 
         for eval_node in eval_nodes:
-            self.config.defrost()
-            self.config.TASK_CONFIG.EVAL_NODE = eval_node
-            self.config.freeez()
+            if eval_node is not None:
+                self.config.defrost()
+                hab_sets = orig_hab_set.split(',')
+                if len(hab_sets) == 0:
+                    hab_sets = []
+                hab_sets.append("TASK_CONFIG.EVAL_NODE=%i" % eval_node)
+                self.config.hab_set = ','.join(hab_sets)
+                print('passing hab set', self.config.hab_set)
+                self.config.freeze()
             self._eval_checkpoint(
                     checkpoint_path,
                     writer,
