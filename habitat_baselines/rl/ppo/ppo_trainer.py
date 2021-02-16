@@ -931,6 +931,8 @@ class PPOTrainer(BaseRLTrainer):
         config.defrost()
         # Always keep the video directory the same.
         config.VIDEO_DIR = self.config.VIDEO_DIR
+        if 'EVAL_NODE' in config.TASK_CONFIG:
+            config.TASK_CONFIG.EVAL_NODE = self.config.TASK_CONFIG.EVAL_NODE
         config.TASK_CONFIG.DATASET.SPLIT = config.EVAL.SPLIT
         config.freeze()
 
@@ -968,6 +970,7 @@ class PPOTrainer(BaseRLTrainer):
             self.agent.actor_critic.init(self.envs.observation_spaces[0],
                     self.envs.action_spaces[0], self.args)
             self.agent.actor_critic.set_env_ref(self.envs)
+            self.agent.actor_critic.set_cfg(config)
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)

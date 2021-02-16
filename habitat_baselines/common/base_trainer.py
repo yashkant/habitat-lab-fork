@@ -128,9 +128,11 @@ class BaseTrainer:
             self.config.freeze()
             print('Found out folder ', self.config.EVAL_CKPT_PATH_DIR)
 
+
+
         with CustomLogger(not self.config.no_wb, args, self.config) as writer:
             if self.config.EVAL.EMPTY:
-                self._eval_checkpoint(
+                self._eval_checkpoint_nodes(
                     self.config.EVAL_CKPT_PATH_DIR,
                     writer,
                     checkpoint_index=0,
@@ -144,7 +146,7 @@ class BaseTrainer:
                     ckpt_idx = proposed_index
                 else:
                     ckpt_idx = 0
-                self._eval_checkpoint(
+                self._eval_checkpoint_nodes(
                     self.config.EVAL_CKPT_PATH_DIR,
                     writer,
                     checkpoint_index=ckpt_idx,
@@ -166,6 +168,24 @@ class BaseTrainer:
                         writer=writer,
                         checkpoint_index=prev_ckpt_ind,
                     )
+
+    def _eval_checkpoint_nodes(self, checkpoint_path, writer,
+            checkpoint_index):
+        eval_node = self.config.TASK_CONFIG.EVAL_NODE
+        if isinstance(eval_node, str):
+            eval_nodes = eval(eval_node)
+            assert isinstance(eval_nodes, list), 'Eval nodes must be a list'
+        else:
+            eval_nodes = [self.config.TASK_CONFIG.EVAL_NODE]
+
+        for eval_node in eval_nodes:
+            self.config.defrost()
+            self.config.TASK_CONFIG.EVAL_NODE = eval_node
+            self.config.freeez()
+            self._eval_checkpoint(
+                    checkpoint_path,
+                    writer,
+                    checkpoint_index)
 
     def _eval_checkpoint(
         self,
