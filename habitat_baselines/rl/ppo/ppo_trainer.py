@@ -185,12 +185,13 @@ class PPOTrainer(BaseRLTrainer):
         import sys
         sys.path.insert(0, './')
         from orp_env_adapter import get_hab_envs, get_hab_args
+        from method.orp_policy_adapter import HabPolicy
         if config is None:
             config = self.config
 
         if not self.is_simple_env():
             policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
-            if 'Modular' in self.config.RL.POLICY.name:
+            if issubclass(policy, HabPolicy):
                 policy = policy(self.config)
             else:
                 policy = None
@@ -976,7 +977,6 @@ class PPOTrainer(BaseRLTrainer):
             self.agent.actor_critic.init(self.envs.observation_spaces[0],
                     self.envs.action_spaces[0], self.args)
             self.agent.actor_critic.set_env_ref(self.envs)
-            self.agent.actor_critic.set_cfg(config)
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
@@ -1126,7 +1126,7 @@ class PPOTrainer(BaseRLTrainer):
                     episode_stats = dict()
                     if hasattr(self.actor_critic, 'mod_policy'):
                         # Stats from the modular policy such as failed modules.
-                        fsm_dat = self.actor_critic.mod_policy.get_fsm_data()
+                        fsm_dat = self.actor_critic.mod_policy.get_skill_data()
                         if infos[i]['ep_success'] == 1.0:
                             # Nothing could have been a failure
                             fsm_dat = {k: 0.0 if 'failure' in k else v
@@ -1155,7 +1155,7 @@ class PPOTrainer(BaseRLTrainer):
                                 k: v
                                 for k, v in self._extract_scalars_from_info(infos[i]).items()
                                 if k in ['ep_success', 'ep_constraint_violate',
-                                    'spl', 'ep_accum_force_end']
+                                    'spl', 'ep_accum_force_end', 'node_idx']
                                 }
                         fname_metrics['reward'] = episode_stats['reward']
                         if 'scene_name' in infos[i]:
@@ -1227,4 +1227,5 @@ class PPOTrainer(BaseRLTrainer):
             writer.add_scalars("eval_metrics", metrics, step_id)
 
         self.envs.close()
+        del self.envs
 

@@ -183,7 +183,6 @@ class BaseTrainer:
             eval_nodes = [None]
 
         orig_hab_set = self.config.hab_set
-        import ipdb; ipdb.set_trace()
 
         for eval_node in eval_nodes:
             if eval_node is not None:
@@ -193,7 +192,6 @@ class BaseTrainer:
                     hab_sets = []
                 hab_sets.append("TASK_CONFIG.EVAL_NODE=%i" % eval_node)
                 self.config.hab_set = ','.join(hab_sets)
-                print('passing hab set', self.config.hab_set)
                 self.config.freeze()
             self._eval_checkpoint(
                     checkpoint_path,
