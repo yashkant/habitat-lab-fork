@@ -190,7 +190,10 @@ class PPOTrainer(BaseRLTrainer):
 
         if not self.is_simple_env():
             policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
-            policy = policy(self.config)
+            if 'Modular' in self.config.RL.POLICY.name:
+                policy = policy(self.config)
+            else:
+                policy = None
             self.envs, args = get_hab_envs(self.config, './config.yaml',
                     is_eval,
                     spec_gpu=self.config.TORCH_GPU_ID,

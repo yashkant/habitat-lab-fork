@@ -74,6 +74,8 @@ def run_exp(exp_config: str, run_type: str, opts=None) -> None:
     if 'RL.POLICY.fuse_states' in opts:
         i = opts.index('RL.POLICY.fuse_states')
         opts[i+1] = opts[i+1].split(',')
+        if len(opts[i+1]) == 1 and opts[i+1][0] == '':
+            opts[i+1] = []
     config = get_config(exp_config, opts)
     execute_exp(config, run_type)
 
