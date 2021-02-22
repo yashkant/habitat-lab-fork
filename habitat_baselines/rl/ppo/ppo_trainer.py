@@ -766,6 +766,11 @@ class PPOTrainer(BaseRLTrainer):
         sys.path.insert(0, './')
         from method.orp_log_adapter import CustomLogger
 
+        _, _, n_tasks = get_distrib_size()
+        self.config.defrost()
+        self.N_TASKS = n_tasks
+        self.config.freeze()
+
         with (
             CustomLogger(not self.config.no_wb, self.args, self.config)
             if rank0_only()
