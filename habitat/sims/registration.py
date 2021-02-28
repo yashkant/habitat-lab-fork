@@ -9,6 +9,8 @@ from habitat.core.registry import registry
 from habitat.sims.habitat_simulator import _try_register_habitat_sim
 from habitat.sims.pyrobot import _try_register_pyrobot
 
+from sims.cos_eor import _try_register_cos_eor_sim
+
 
 def make_sim(id_sim, **kwargs):
     logger.info("initializing sim {}".format(id_sim))
@@ -21,3 +23,4 @@ def make_sim(id_sim, **kwargs):
 
 _try_register_habitat_sim()
 _try_register_pyrobot()
+_try_register_cos_eor_sim()

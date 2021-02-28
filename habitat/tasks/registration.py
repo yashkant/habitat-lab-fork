@@ -10,6 +10,8 @@ from habitat.tasks.eqa import _try_register_eqa_task
 from habitat.tasks.nav import _try_register_nav_task
 from habitat.tasks.vln import _try_register_vln_task
 
+from tasks.cos_eor import _try_register_cos_eor_task
+
 
 def make_task(id_task, **kwargs):
     logger.info("Initializing task {}".format(id_task))
@@ -24,3 +26,4 @@ def make_task(id_task, **kwargs):
 _try_register_eqa_task()
 _try_register_nav_task()
 _try_register_vln_task()
+_try_register_cos_eor_task()
