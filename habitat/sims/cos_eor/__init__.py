@@ -8,7 +8,7 @@ from habitat.core.simulator import Simulator
 
 def _try_register_cos_eor_sim():
     try:
-        import cos_eor_sim  # noqa: F401
+        import habitat.sims.cos_eor  # noqa: F401
 
         has_cos_eor_sim = True
     except ImportError as e:
@@ -16,9 +16,7 @@ def _try_register_cos_eor_sim():
         cos_eor_sim_import_error = e
 
     if has_cos_eor_sim:
-        from habitat.sims.cos_eor.actions import (  # noqa: F401
-            RearrangementSimV0ActionSpaceConfiguration,
-        )
+        from habitat.sims.cos_eor.cos_eor import CosRearrangementSim  # noqa: F401
     else:
 
         @registry.register_simulator(name="CosRearrangementSim-v0")

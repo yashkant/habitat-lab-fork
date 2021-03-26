@@ -34,6 +34,8 @@ class RearrangementObjectSpec(RearrangementSpec):
     object_template: Optional[str] = attr.ib(
         default="data/test_assets/objects/chair"
     )
+    is_articulate: bool = attr.ib(default=False, validator=not_none_validator)
+
 
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -74,7 +76,7 @@ class CosRearrangementDatasetV0(PointNavDatasetV1):
         super().__init__(config)
 
     def from_json(
-        self, json_str: str, scenes_dir: Optional[str] = None
+        self, json_str: str, scenes_dir: Optional[str] = None, **kwargs
     ) -> None:
         deserialized = json.loads(json_str)
         if CONTENT_SCENES_PATH_FIELD in deserialized:
@@ -106,8 +108,3 @@ class CosRearrangementDatasetV0(PointNavDatasetV1):
             )
 
             self.episodes.append(rearrangement_episode)
-
-
-if __name__ == '__main__':
-    import pdb
-    pdb.set_trace()

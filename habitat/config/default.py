@@ -335,7 +335,43 @@ _C.DATASET.DATA_PATH = (
 )
 
 # -----------------------------------------------------------------------------
-
+# COMMONSENSE-EOR TASK
+# -----------------------------------------------------------------------------
+_C.TASK.ACTIONS.GRAB_RELEASE = CN()
+_C.TASK.ACTIONS.GRAB_RELEASE.TYPE = "GrabOrReleaseAction"
+_C.SIMULATOR.CROSSHAIR_POS = [360, 540]  # (0.5xW, 0.75xH) from top-left
+_C.SIMULATOR.GRAB_DISTANCE = 2.0
+_C.SIMULATOR.VISUAL_SENSOR = "rgb"
+# -----------------------------------------------------------------------------
+# # REARRANGEMENT TASK GRIPPED OBJECT SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.GRIPPED_OBJECT_SENSOR = CN()
+_C.TASK.GRIPPED_OBJECT_SENSOR.TYPE = "GrippedObjectSensor"
+# -----------------------------------------------------------------------------
+# # REARRANGEMENT TASK ALL OBJECT POSITIONS SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.OBJECT_POSITION = CN()
+_C.TASK.OBJECT_POSITION.TYPE = "ObjectPosition"
+_C.TASK.OBJECT_POSITION.GOAL_FORMAT = "POLAR"
+_C.TASK.OBJECT_POSITION.DIMENSIONALITY = 2
+# -----------------------------------------------------------------------------
+# # REARRANGEMENT TASK ALL OBJECT GOALS SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.OBJECT_GOAL = CN()
+_C.TASK.OBJECT_GOAL.TYPE = "ObjectGoal"
+_C.TASK.OBJECT_GOAL.GOAL_FORMAT = "POLAR"
+_C.TASK.OBJECT_GOAL.DIMENSIONALITY = 2
+# -----------------------------------------------------------------------------
+# # OBJECT_DISTANCE_TO_GOAL MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.OBJECT_TO_GOAL_DISTANCE = CN()
+_C.TASK.OBJECT_TO_GOAL_DISTANCE.TYPE = "ObjectToGoalDistance"
+# -----------------------------------------------------------------------------
+# # OBJECT_DISTANCE_FROM_AGENT MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.AGENT_TO_OBJECT_DISTANCE = CN()
+_C.TASK.AGENT_TO_OBJECT_DISTANCE.TYPE = "AgentToObjectDistance"
+# -----------------------------------------------------------------------------
 
 def get_config(
     config_paths: Optional[Union[List[str], str]] = None,

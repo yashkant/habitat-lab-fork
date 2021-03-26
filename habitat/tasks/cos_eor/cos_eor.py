@@ -39,11 +39,10 @@ class ObjectToGoalDistance(Measure):
         )
 
     def update_metric(self, episode, *args: Any, **kwargs: Any):
-        sim_obj_id = self._sim.get_existing_object_ids()[0]
+        ids_pos = self._sim.get_both_existing_object_ids_with_positions()
+        previous_position = ids_pos["art_pos"][0] if len(ids_pos["art_pos"]) > 0 else ids_pos["non_art_pos"][0]
+        previous_position = np.array(previous_position).tolist()
 
-        previous_position = np.array(
-            self._sim.get_translation(sim_obj_id)
-        ).tolist()
         goal_position = episode.goals.position
         self._metric = self._euclidean_distance(
             previous_position, goal_position
@@ -77,10 +76,9 @@ class AgentToObjectDistance(Measure):
         )
 
     def update_metric(self, episode, *args: Any, **kwargs: Any):
-        sim_obj_id = self._sim.get_existing_object_ids()[0]
-        previous_position = np.array(
-            self._sim.get_translation(sim_obj_id)
-        ).tolist()
+        ids_pos = self._sim.get_both_existing_object_ids_with_positions()
+        previous_position = ids_pos["art_pos"][0] if len(ids_pos["art_pos"]) > 0 else ids_pos["non_art_pos"][0]
+        previous_position = np.array(previous_position).tolist()
 
         agent_state = self._sim.get_agent_state()
         agent_position = agent_state.position

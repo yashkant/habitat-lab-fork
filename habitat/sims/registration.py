@@ -9,7 +9,7 @@ from habitat.core.registry import registry
 from habitat.sims.habitat_simulator import _try_register_habitat_sim
 from habitat.sims.pyrobot import _try_register_pyrobot
 
-from sims.cos_eor import _try_register_cos_eor_sim
+from habitat.sims.cos_eor import _try_register_cos_eor_sim
 
 
 def make_sim(id_sim, **kwargs):
