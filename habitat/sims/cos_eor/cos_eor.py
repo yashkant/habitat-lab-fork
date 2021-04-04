@@ -137,25 +137,44 @@ class CosRearrangementSim(HabitatSim):
         # Recompute the navmesh after placing all the objects.
         self.recompute_navmesh(self.pathfinder, self.navmesh_settings, True)
 
+    def get_object_type(self, object_id):
+        ids_dict = self.get_both_existing_object_ids()
+        if object_id in ids_dict["art"]:
+            return "art"
+        else:
+            return "non_art"
+
     def _sync_gripped_object(self, gripped_object_id):
         r"""
         Sync the gripped object with the object associated with the agent.
         """
+
         if gripped_object_id != -1:
-            agent_body_transformation = (
-                self._default_agent.scene_node.transformation
-            )
-            self.set_transformation(
-                agent_body_transformation, gripped_object_id
-            )
-            translation = agent_body_transformation.transform_point(
-                np.array([0, 2.0, 0])
-            )
-            self.set_translation(translation, gripped_object_id)
+            agent_transform = self._default_agent.scene_node.transformation
+            obj_translation = agent_transform.transform_point(np.array([0, 2.0, 0]))
+            object_transform = getattr(mn.Matrix4, 'from')\
+                (agent_transform.rotation(), mn.Vector3(obj_translation))
+
+            # holding it on the head of the agent
+            ids_dict = self.get_both_existing_object_ids()
+
+            if gripped_object_id in ids_dict["art"]:
+                self.set_articulated_object_root_state(gripped_object_id, object_transform)
+            else:
+                self.set_transformation(
+                    agent_transform, gripped_object_id
+                )
+                self.set_translation(obj_translation, gripped_object_id)
 
     @property
     def gripped_object_id(self):
         return self._prev_sim_obs.get("gripped_object_id", -1)
+
+    def debug_frame(self):
+        import cv2
+        obs = self.get_sensor_observations()
+        rgb = cv2.cvtColor(obs["rgb"], cv2.COLOR_RGBA2RGB)
+        cv2.imwrite("debug_frame.jpeg", rgb)
 
     def step(self, action: int):
         dt = 1 / 60.0
@@ -169,23 +188,32 @@ class CosRearrangementSim(HabitatSim):
         if action_spec.name == "grab_or_release_object_under_crosshair":
             # If already holding an agent
             if gripped_object_id != -1:
-                agent_body_transformation = (
+                agent_transform = (
                     self._default_agent.scene_node.transformation
                 )
-                T = np.dot(agent_body_transformation, self.grip_offset)
+                object_transform = np.dot(agent_transform, self.grip_offset)
+                object_type = self.get_object_type(gripped_object_id)
 
-                self.set_transformation(T, gripped_object_id)
-
-                position = self.get_translation(gripped_object_id)
+                if object_type == "art":
+                    self.set_articulated_object_root_state(gripped_object_id, object_transform)
+                    position = self.get_articulated_object_root_state(gripped_object_id).translation
+                else:
+                    self.set_transformation(object_transform, gripped_object_id)
+                    position = self.get_translation(gripped_object_id)
 
                 if self.pathfinder.is_navigable(position):
-                    self.set_object_motion_type(
-                        MotionType.STATIC, gripped_object_id
-                    )
+                    if object_type == "art":
+                        self.set_articulated_object_motion_type(gripped_object_id, MotionType.STATIC)
+                    else:
+                        self.set_object_motion_type(
+                            MotionType.STATIC, gripped_object_id
+                        )
+
                     gripped_object_id = -1
                     self.recompute_navmesh(
                         self.pathfinder, self.navmesh_settings, True
                     )
+
             # if not holding an object, then try to grab
             else:
                 gripped_object_id = raycast(
@@ -195,21 +223,26 @@ class CosRearrangementSim(HabitatSim):
                     max_distance=action_spec.actuation.amount,
                 )
 
-                import pdb
-                pdb.set_trace()
-
                 # found a grabbable object.
                 if gripped_object_id != -1:
-                    agent_body_transformation = (
-                        self._default_agent.scene_node.transformation
-                    )
+                    ids_dict = self.get_both_existing_object_ids()
+                    agent_transform = self._default_agent.scene_node.transformation
 
+                    if gripped_object_id in ids_dict["art"]:
+                        obj_transform = self.get_articulated_object_root_state(gripped_object_id)
+                        self.set_articulated_object_motion_type(
+                            gripped_object_id, MotionType.KINEMATIC
+                        )
+                    else:
+                        obj_transform = self.get_transformation(gripped_object_id)
+                        self.set_object_motion_type(
+                            MotionType.KINEMATIC, gripped_object_id
+                        )
+
+                    # (YK): This doesn't sum after dot-product
                     self.grip_offset = np.dot(
-                        np.array(agent_body_transformation.inverted()),
-                        np.array(self.get_transformation(gripped_object_id)),
-                    )
-                    self.set_object_motion_type(
-                        MotionType.KINEMATIC, gripped_object_id
+                        np.array(agent_transform.inverted()),
+                        np.array(obj_transform),
                     )
                     self.recompute_navmesh(
                         self.pathfinder, self.navmesh_settings, True
