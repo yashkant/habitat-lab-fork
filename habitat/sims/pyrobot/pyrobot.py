@@ -157,7 +157,7 @@ class PyRobot(Simulator):
     python3 version. Please refer to the PyRobot repository
     for setting it up. The user will also have to export a
     ROS_PATH environment variable to use this integration,
-    please refer to :ref:`habitat.core.utils.try_cv2_import` for
+    please refer to :ref:`habitat.core.utils.py.try_cv2_import` for
     more details on this.
 
     This abstraction assumes that reality is a simulation

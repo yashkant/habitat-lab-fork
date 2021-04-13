@@ -4,7 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 """
- Tokenize and vocabulary utils originally authored by @apsdehal and are
+ Tokenize and vocabulary utils.py originally authored by @apsdehal and are
  taken from Pythia.
 """
 import re

@@ -9,27 +9,40 @@ import torch
 from gym import spaces
 from torch import nn as nn
 
+from habitat.config import Config
 from habitat.tasks.nav.nav import (
     ImageGoalSensor,
     IntegratedPointGoalGPSAndCompassSensor,
     PointGoalSensor,
 )
 from habitat_baselines.common.baseline_registry import baseline_registry
-from habitat_baselines.common.utils import CategoricalNet
-from habitat_baselines.rl.models.rnn_state_encoder import RNNStateEncoder
+from habitat_baselines.rl.models.rnn_state_encoder import (
+    build_rnn_state_encoder,
+)
 from habitat_baselines.rl.models.simple_cnn import SimpleCNN
+from habitat_baselines.utils.common import CategoricalNet
+
+import rlf.policies.utils as putils
+import rlf.rl.utils as rutils
+from habitat.core.spaces import ActionSpace
+from orp.env_aux import TargetPointGoalGPSAndCompassSensor
 
 
 class Policy(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, net, dim_actions):
+    def __init__(self, net, action_space):
         super().__init__()
         self.net = net
-        self.dim_actions = dim_actions
 
-        self.action_distribution = CategoricalNet(
-            self.net.output_size, self.dim_actions
-        )
-        self.critic = CriticHead(self.net.output_size)
+        if net is not None:
+            if isinstance(action_space, ActionSpace):
+                self.action_distribution = CategoricalNet(
+                    self.net.output_size, action_space.n
+                )
+                #self.action_distribution = putils.get_def_dist((self.net.output_size,), spaces.Discrete(action_space.n))
+            else:
+                self.action_distribution = putils.get_def_dist((self.net.output_size,), action_space)
+
+            self.critic = CriticHead(self.net.output_size)
 
     def forward(self, *x):
         raise NotImplementedError
@@ -73,13 +86,13 @@ class Policy(nn.Module, metaclass=abc.ABCMeta):
         value = self.critic(features)
 
         action_log_probs = distribution.log_probs(action)
-        distribution_entropy = distribution.entropy().mean()
+        distribution_entropy = distribution.entropy()
 
         return value, action_log_probs, distribution_entropy, rnn_hidden_states
 
     @classmethod
     @abc.abstractmethod
-    def from_config(cls, config, envs):
+    def from_config(cls, config, observation_space, action_space):
         pass
 
 
@@ -97,21 +110,31 @@ class CriticHead(nn.Module):
 @baseline_registry.register_policy
 class PointNavBaselinePolicy(Policy):
     def __init__(
-        self, observation_space, action_space, hidden_size=512, **kwargs
+        self,
+        observation_space: spaces.Dict,
+        action_space,
+        hidden_size: int = 512,
+        **kwargs
     ):
         super().__init__(
-            PointNavBaselineNet(
-                observation_space=observation_space, hidden_size=hidden_size
+            PointNavBaselineNet(  # type: ignore
+                observation_space=observation_space,
+                hidden_size=hidden_size,
+                **kwargs,
             ),
-            action_space.n,
+            action_space
         )
 
     @classmethod
-    def from_config(cls, config, envs):
+    def from_config(
+        cls, config: Config, observation_space: spaces.Dict, action_space
+    ):
         return cls(
-            observation_space=envs.observation_spaces[0],
-            action_space=envs.action_spaces[0],
+            observation_space=observation_space,
+            action_space=action_space,
             hidden_size=config.RL.PPO.hidden_size,
+            fuse_states=config.RL.POLICY.fuse_states,
+            force_blind=config.RL.POLICY.force_blind
         )
 
 
@@ -141,10 +164,20 @@ class PointNavBaselineNet(Net):
     goal vector with CNN's output and passes that through RNN.
     """
 
-    def __init__(self, observation_space, hidden_size):
+    def __init__(
+        self,
+        observation_space: spaces.Dict,
+        hidden_size: int,
+        fuse_states,
+        force_blind
+    ):
         super().__init__()
 
-        if (
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
+            self._n_input_goal = observation_space.spaces[
+                TargetPointGoalGPSAndCompassSensor.cls_uuid
+            ].shape[0]
+        elif (
             IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             in observation_space.spaces
         ):
@@ -160,15 +193,20 @@ class PointNavBaselineNet(Net):
                 {"rgb": observation_space.spaces[ImageGoalSensor.cls_uuid]}
             )
             self.goal_visual_encoder = SimpleCNN(
-                goal_observation_space, hidden_size
+                goal_observation_space, hidden_size, False
             )
             self._n_input_goal = hidden_size
+        else:
+            self.fuse_states = fuse_states
+            self._n_input_goal = sum([observation_space.spaces[n].shape[0] for n in
+                    self.fuse_states])
 
         self._hidden_size = hidden_size
 
-        self.visual_encoder = SimpleCNN(observation_space, hidden_size)
+        self.visual_encoder = SimpleCNN(observation_space, hidden_size,
+                force_blind)
 
-        self.state_encoder = RNNStateEncoder(
+        self.state_encoder = build_rnn_state_encoder(
             (0 if self.is_blind else self._hidden_size) + self._n_input_goal,
             self._hidden_size,
         )
@@ -188,16 +226,20 @@ class PointNavBaselineNet(Net):
         return self.state_encoder.num_recurrent_layers
 
     def forward(self, observations, rnn_hidden_states, prev_actions, masks):
-        if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
+        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observations:
+            target_encoding = observations[TargetPointGoalGPSAndCompassSensor.cls_uuid]
+        elif IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
             target_encoding = observations[
                 IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             ]
-
         elif PointGoalSensor.cls_uuid in observations:
             target_encoding = observations[PointGoalSensor.cls_uuid]
         elif ImageGoalSensor.cls_uuid in observations:
             image_goal = observations[ImageGoalSensor.cls_uuid]
             target_encoding = self.goal_visual_encoder({"rgb": image_goal})
+        else:
+            target_encoding = torch.cat([observations[k] for k in
+                self.fuse_states], dim=-1)
 
         x = [target_encoding]
 
@@ -205,7 +247,9 @@ class PointNavBaselineNet(Net):
             perception_embed = self.visual_encoder(observations)
             x = [perception_embed] + x
 
-        x = torch.cat(x, dim=1)
-        x, rnn_hidden_states = self.state_encoder(x, rnn_hidden_states, masks)
+        x_out = torch.cat(x, dim=1)
+        x_out, rnn_hidden_states = self.state_encoder(
+            x_out, rnn_hidden_states, masks
+        )
 
-        return x, rnn_hidden_states
+        return x_out, rnn_hidden_states

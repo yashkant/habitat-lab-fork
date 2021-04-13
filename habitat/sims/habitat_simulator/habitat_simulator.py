@@ -66,17 +66,21 @@ def overwrite_config(
 
     for attr, value in config_from.items():
         low_attr = attr.lower()
-        if ignore_keys is None or low_attr not in ignore_keys:
-            if hasattr(config_to, low_attr):
-                setattr(config_to, low_attr, if_config_to_lower(value))
-            else:
-                raise NameError(
-                    f"""{low_attr} is not found on habitat_sim but is found on habitat_lab config.
-                    It's also not in the list of keys to ignore: {ignore_keys}
-                    Did you make a typo in the config?
-                    If not the version of Habitat Sim may not be compatible with Habitat Lab version: {config_from}
-                    """
-                )
+        try:
+            if ignore_keys is None or low_attr not in ignore_keys:
+                if hasattr(config_to, low_attr):
+                    setattr(config_to, low_attr, if_config_to_lower(value))
+                else:
+                    raise NameError(
+                        f"""{low_attr} is not found on habitat_sim but is found on habitat_lab config.
+                        It's also not in the list of keys to ignore: {ignore_keys}
+                        Did you make a typo in the config?
+                        If not the version of Habitat Sim may not be compatible with Habitat Lab version: {config_from}
+                        """
+                    )
+        except:
+            import pdb
+            pdb.set_trace()
 
 
 @registry.register_sensor
@@ -104,6 +108,62 @@ class HabitatSimRGBSensor(RGBSensor):
         # remove alpha channel
         obs = obs[:, :, :RGBSENSOR_DIMENSION]  # type: ignore[index]
         return obs
+
+
+@registry.register_sensor
+class HabitatSimRGBSensor3rdPerson(RGBSensor):
+    sim_sensor_type: habitat_sim.SensorType
+
+    def __init__(self, config):
+        self.sim_sensor_type = habitat_sim.SensorType.COLOR
+        super().__init__(config=config)
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.config.HEIGHT, self.config.WIDTH, RGBSENSOR_DIMENSION),
+            dtype=np.uint8,
+        )
+
+    def get_observation(self, sim_obs):
+        obs = sim_obs.get(self.uuid, None)
+        check_sim_obs(obs, self)
+
+        # remove alpha channel
+        obs = obs[:, :, :RGBSENSOR_DIMENSION]
+        return obs
+
+    def _get_uuid(self, *args: Any, **kwargs: Any) -> str:
+        return "rgb_3rd_person"
+
+
+@registry.register_sensor
+class HabitatSimOrthographicSensor(RGBSensor):
+    sim_sensor_type: habitat_sim.SensorType
+
+    def __init__(self, config):
+        self.sim_sensor_type = habitat_sim.SensorType.COLOR
+        super().__init__(config=config)
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.config.HEIGHT, self.config.WIDTH, RGBSENSOR_DIMENSION),
+            dtype=np.uint8,
+        )
+
+    def get_observation(self, sim_obs):
+        obs = sim_obs.get(self.uuid, None)
+        check_sim_obs(obs, self)
+
+        # remove alpha channel
+        obs = obs[:, :, :RGBSENSOR_DIMENSION]
+        return obs
+
+    def _get_uuid(self, *args: Any, **kwargs: Any) -> str:
+        return "rgb_orthographic"
 
 
 @registry.register_sensor
@@ -155,6 +215,59 @@ class HabitatSimDepthSensor(DepthSensor):
             )
 
         return obs
+
+
+@registry.register_sensor
+class HabitatSimSmallDepthSensor(HabitatSimDepthSensor):
+    sim_sensor_type: habitat_sim.SensorType
+    min_depth_value: float
+    max_depth_value: float
+
+    def __init__(self, config):
+        self.sim_sensor_type = habitat_sim.SensorType.DEPTH
+
+        if config.NORMALIZE_DEPTH:
+            self.min_depth_value = 0
+            self.max_depth_value = 1
+        else:
+            self.min_depth_value = config.MIN_DEPTH
+            self.max_depth_value = config.MAX_DEPTH
+
+        super().__init__(config=config)
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=self.min_depth_value,
+            high=self.max_depth_value,
+            shape=(self.config.HEIGHT, self.config.WIDTH, 1),
+            dtype=np.float32,
+        )
+
+    def get_observation(self, sim_obs):
+        obs = sim_obs.get(self.uuid, None)
+        check_sim_obs(obs, self)
+
+        if isinstance(obs, np.ndarray):
+            obs = np.clip(obs, self.config.MIN_DEPTH, self.config.MAX_DEPTH)
+
+            obs = np.expand_dims(
+                obs, axis=2
+            )  # make depth observation a 3D array
+        else:
+            obs = obs.clamp(self.config.MIN_DEPTH, self.config.MAX_DEPTH)
+
+            obs = obs.unsqueeze(-1)
+
+        if self.config.NORMALIZE_DEPTH:
+            # normalize depth observation to [0, 1]
+            obs = (obs - self.config.MIN_DEPTH) / (
+                self.config.MAX_DEPTH - self.config.MIN_DEPTH
+            )
+
+        return obs
+
+    def _get_uuid(self, *args: Any, **kwargs: Any) -> str:
+        return "small_depth"
 
 
 @registry.register_sensor
@@ -253,6 +366,7 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
                 "sensors",
                 "start_position",
                 "start_rotation",
+                "max_climb"
             },
         )
 
@@ -275,6 +389,7 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
                     "normalize_depth",
                     "type",
                     "width",
+                    "sensor_subtype",
                 },
             )
             sim_sensor_cfg.uuid = sensor.uuid

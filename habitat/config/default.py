@@ -217,6 +217,12 @@ _C.SIMULATOR.SEED = _C.SEED
 _C.SIMULATOR.TURN_ANGLE = 10  # angle to rotate left or right in degrees
 _C.SIMULATOR.TILT_ANGLE = 15  # angle to tilt the camera up or down in degrees
 _C.SIMULATOR.DEFAULT_AGENT_ID = 0
+_C.SIMULATOR.INITIAL_LOOK_DOWN_ANGLE = (
+    0  # angle to look down at the start of the episode
+)
+_C.SIMULATOR.CROSSHAIR_POS = [128, 192]  # x, y
+_C.SIMULATOR.GRAB_DISTANCE = 2.0
+_C.SIMULATOR.VISUAL_SENSOR = "depth"
 # -----------------------------------------------------------------------------
 # SIMULATOR SENSORS
 # -----------------------------------------------------------------------------
@@ -226,11 +232,20 @@ SIMULATOR_SENSOR.WIDTH = 640
 SIMULATOR_SENSOR.HFOV = 90  # horizontal field of view in degrees
 SIMULATOR_SENSOR.POSITION = [0, 1.25, 0]
 SIMULATOR_SENSOR.ORIENTATION = [0.0, 0.0, 0.0]  # Euler's angles
+SIMULATOR_SENSOR.SENSOR_SUBTYPE = "PINHOLE"
 # -----------------------------------------------------------------------------
 # RGB SENSOR
 # -----------------------------------------------------------------------------
 _C.SIMULATOR.RGB_SENSOR = SIMULATOR_SENSOR.clone()
 _C.SIMULATOR.RGB_SENSOR.TYPE = "HabitatSimRGBSensor"
+
+_C.SIMULATOR.RGB_SENSOR_3RD_PERSON = SIMULATOR_SENSOR.clone()
+_C.SIMULATOR.RGB_SENSOR_3RD_PERSON.TYPE = "HabitatSimRGBSensor3rdPerson"
+
+_C.SIMULATOR.ORTHOGRAPHIC_SENSOR = SIMULATOR_SENSOR.clone()
+_C.SIMULATOR.ORTHOGRAPHIC_SENSOR.TYPE = "HabitatSimOrthographicSensor"
+_C.SIMULATOR.ORTHOGRAPHIC_SENSOR.SENSOR_SUBTYPE = "ORTHOGRAPHIC"
+
 # -----------------------------------------------------------------------------
 # DEPTH SENSOR
 # -----------------------------------------------------------------------------
@@ -239,6 +254,15 @@ _C.SIMULATOR.DEPTH_SENSOR.TYPE = "HabitatSimDepthSensor"
 _C.SIMULATOR.DEPTH_SENSOR.MIN_DEPTH = 0.0
 _C.SIMULATOR.DEPTH_SENSOR.MAX_DEPTH = 10.0
 _C.SIMULATOR.DEPTH_SENSOR.NORMALIZE_DEPTH = True
+
+# -----------------------------------------------------------------------------
+# SMALL_DEPTH SENSOR
+# -----------------------------------------------------------------------------
+_C.SIMULATOR.SMALL_DEPTH_SENSOR = SIMULATOR_SENSOR.clone()
+_C.SIMULATOR.SMALL_DEPTH_SENSOR.TYPE = "HabitatSimSmallDepthSensor"
+_C.SIMULATOR.SMALL_DEPTH_SENSOR.MIN_DEPTH = 0.0
+_C.SIMULATOR.SMALL_DEPTH_SENSOR.MAX_DEPTH = 10.0
+_C.SIMULATOR.SMALL_DEPTH_SENSOR.NORMALIZE_DEPTH = True
 # -----------------------------------------------------------------------------
 # SEMANTIC SENSOR
 # -----------------------------------------------------------------------------
@@ -251,6 +275,7 @@ _C.SIMULATOR.AGENT_0 = CN()
 _C.SIMULATOR.AGENT_0.HEIGHT = 1.5
 _C.SIMULATOR.AGENT_0.RADIUS = 0.1
 _C.SIMULATOR.AGENT_0.MASS = 32.0
+_C.SIMULATOR.AGENT_0.MAX_CLIMB = 0.2
 _C.SIMULATOR.AGENT_0.LINEAR_ACCELERATION = 20.0
 _C.SIMULATOR.AGENT_0.ANGULAR_ACCELERATION = 4 * 3.14
 _C.SIMULATOR.AGENT_0.LINEAR_FRICTION = 0.5
@@ -261,6 +286,7 @@ _C.SIMULATOR.AGENT_0.IS_SET_START_STATE = False
 _C.SIMULATOR.AGENT_0.START_POSITION = [0, 0, 0]
 _C.SIMULATOR.AGENT_0.START_ROTATION = [0, 0, 0, 1]
 _C.SIMULATOR.AGENTS = ["AGENT_0"]
+
 # -----------------------------------------------------------------------------
 # SIMULATOR HABITAT_SIM_V0
 # -----------------------------------------------------------------------------
@@ -277,7 +303,7 @@ _C.SIMULATOR.HABITAT_SIM_V0.GPU_GPU = False
 _C.SIMULATOR.HABITAT_SIM_V0.ALLOW_SLIDING = True
 _C.SIMULATOR.HABITAT_SIM_V0.ENABLE_PHYSICS = False
 _C.SIMULATOR.HABITAT_SIM_V0.PHYSICS_CONFIG_FILE = (
-    "./data/default.physics_config.json"
+    "./data/default.physics_config_dummy.json"
 )
 # -----------------------------------------------------------------------------
 # PYROBOT
@@ -333,12 +359,18 @@ _C.DATASET.CONTENT_SCENES = ["*"]
 _C.DATASET.DATA_PATH = (
     "data/datasets/pointnav/habitat-test-scenes/v1/{split}/{split}.json.gz"
 )
+_C.DATASET.FILTER_SCENES_PATH = ""
 
 # -----------------------------------------------------------------------------
 # COMMONSENSE-EOR TASK
 # -----------------------------------------------------------------------------
 _C.TASK.ACTIONS.GRAB_RELEASE = CN()
 _C.TASK.ACTIONS.GRAB_RELEASE.TYPE = "GrabOrReleaseAction"
+
+# play script
+_C.TASK.ACTIONS.GRAB_RELEASE_PLAY = CN()
+_C.TASK.ACTIONS.GRAB_RELEASE_PLAY.TYPE = "GrabOrReleaseActionPlay"
+
 _C.SIMULATOR.CROSSHAIR_POS = [360, 540]  # (0.5xW, 0.75xH) from top-left
 _C.SIMULATOR.GRAB_DISTANCE = 2.0
 _C.SIMULATOR.VISUAL_SENSOR = "rgb"
@@ -366,12 +398,44 @@ _C.TASK.OBJECT_GOAL.DIMENSIONALITY = 2
 # -----------------------------------------------------------------------------
 _C.TASK.OBJECT_TO_GOAL_DISTANCE = CN()
 _C.TASK.OBJECT_TO_GOAL_DISTANCE.TYPE = "ObjectToGoalDistance"
+
+# play script
+_C.TASK.OBJECT_TO_GOAL_DISTANCE_PLAY = CN()
+_C.TASK.OBJECT_TO_GOAL_DISTANCE_PLAY.TYPE = "ObjectToGoalDistancePlay"
 # -----------------------------------------------------------------------------
 # # OBJECT_DISTANCE_FROM_AGENT MEASUREMENT
 # -----------------------------------------------------------------------------
 _C.TASK.AGENT_TO_OBJECT_DISTANCE = CN()
 _C.TASK.AGENT_TO_OBJECT_DISTANCE.TYPE = "AgentToObjectDistance"
+
+# play script
+_C.TASK.AGENT_TO_OBJECT_DISTANCE_PLAY = CN()
+_C.TASK.AGENT_TO_OBJECT_DISTANCE_PLAY.TYPE = "AgentToObjectDistancePlay"
 # -----------------------------------------------------------------------------
+# # REARRANGEMENT TASK ALL OBJECT POSITIONS SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.ALL_OBJECT_POSITIONS = CN()
+_C.TASK.ALL_OBJECT_POSITIONS.TYPE = "AllObjectPositions"
+_C.TASK.ALL_OBJECT_POSITIONS.GOAL_FORMAT = "POLAR"
+_C.TASK.ALL_OBJECT_POSITIONS.DIMENSIONALITY = 2
+# -----------------------------------------------------------------------------
+# # REARRANGEMENT TASK ALL OBJECT GOALS SENSOR
+# -----------------------------------------------------------------------------
+_C.TASK.ALL_OBJECT_GOALS = CN()
+_C.TASK.ALL_OBJECT_GOALS.TYPE = "AllObjectGoals"
+_C.TASK.ALL_OBJECT_GOALS.GOAL_FORMAT = "POLAR"
+_C.TASK.ALL_OBJECT_GOALS.DIMENSIONALITY = 2
+# -----------------------------------------------------------------------------
+# REARRANGEMENT SPL MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.REARRANGEMENT_SPL = CN()
+_C.TASK.REARRANGEMENT_SPL.TYPE = "RearrangementSPL"
+# -----------------------------------------------------------------------------
+# EPISODE DISTANCE MEASUREMENT
+# -----------------------------------------------------------------------------
+_C.TASK.EPISODE_DISTANCE = CN()
+_C.TASK.EPISODE_DISTANCE.TYPE = "EpisodeDistance"
+
 
 def get_config(
     config_paths: Optional[Union[List[str], str]] = None,

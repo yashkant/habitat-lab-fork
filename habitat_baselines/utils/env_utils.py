@@ -35,14 +35,14 @@ def make_env_fn(
 
 def construct_envs(
     config: Config,
-    env_class: Union[Type[Env], Type[RLEnv]],
+    env_class: Type[Union[Env, RLEnv]],
     workers_ignore_signals: bool = False,
 ) -> VectorEnv:
     r"""Create VectorEnv object with specified config and env class type.
     To allow better performance, dataset are split into small ones for
     each individual env, grouped by scenes.
 
-    :param config: configs that contain num_environments as well as information
+    :param config: configs that contain num_processes as well as information
     :param necessary to create individual environments.
     :param env_class: class type of the envs to be created.
     :param workers_ignore_signals: Passed to :ref:`habitat.VectorEnv`'s constructor
@@ -50,38 +50,38 @@ def construct_envs(
     :return: VectorEnv object created according to specification.
     """
 
-    num_environments = config.NUM_ENVIRONMENTS
+    # YK: There is lot of ugly code here, the dataset init is being called
+    #  multiple times w/o particular reason
+
+    num_processes = config.NUM_PROCESSES
     configs = []
-    env_classes = [env_class for _ in range(num_environments)]
+    env_classes = [env_class for _ in range(num_processes)]
     dataset = make_dataset(config.TASK_CONFIG.DATASET.TYPE)
     scenes = config.TASK_CONFIG.DATASET.CONTENT_SCENES
     if "*" in config.TASK_CONFIG.DATASET.CONTENT_SCENES:
         scenes = dataset.get_scenes_to_load(config.TASK_CONFIG.DATASET)
 
-    if num_environments > 1:
+    if num_processes > 1:
         if len(scenes) == 0:
             raise RuntimeError(
                 "No scenes to load, multiple process logic relies on being able to split scenes uniquely between processes"
             )
 
         if len(scenes) < num_processes:
-            # Hack to train with just one scene
-            assert len(scenes) == 1
-            scenes = [scenes[0] for _ in range(num_processes)]
-            #raise RuntimeError(
-            #    "reduce the number of processes as there "
-            #    "aren't enough number of scenes"
-            #)
+            raise RuntimeError(
+                "reduce the number of processes as there "
+                "aren't enough number of scenes"
+            )
 
         random.shuffle(scenes)
 
-    scene_splits: List[List[str]] = [[] for _ in range(num_environments)]
+    scene_splits = [[] for _ in range(num_processes)]
     for idx, scene in enumerate(scenes):
         scene_splits[idx % len(scene_splits)].append(scene)
 
     assert sum(map(len, scene_splits)) == len(scenes)
 
-    for i in range(num_environments):
+    for i in range(num_processes):
         proc_config = config.clone()
         proc_config.defrost()
 
@@ -98,17 +98,25 @@ def construct_envs(
 
         proc_config.freeze()
         configs.append(proc_config)
+    # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    if config.IS_DEBUG_MODE:
-        envs = habitat.ThreadedVectorEnv(
-            make_env_fn=make_env_fn,
-            env_fn_args=tuple(zip(configs, env_classes)),
-            workers_ignore_signals=workers_ignore_signals,
-        )
-    else:
-        envs = habitat.VectorEnv(
-            make_env_fn=make_env_fn,
-            env_fn_args=tuple(zip(configs, env_classes)),
-            workers_ignore_signals=workers_ignore_signals,
-        )
+    # # debug code
+    # env = make_env_fn(configs[0], env_classes[0])
+    # env.reset()
+    # observations = []
+    # for i in range(600):
+    #     debug_action = env.action_space.sample()
+    #     obs = env.step(action=debug_action)[0]
+    #     observations.append(obs)
+    #     print(f"Debug Action: {debug_action}")
+    #
+    # from cos_eor.play_utils import make_video_cv2
+    # make_video_cv2(observations, prefix="debug-rgb-", sensor="rgb")
+    # make_video_cv2(observations, prefix="debug-rgb-third-", sensor="rgb_3rd_person")
+
+    envs = habitat.VectorEnv(
+        make_env_fn=make_env_fn,
+        env_fn_args=tuple(zip(configs, env_classes)),
+        workers_ignore_signals=workers_ignore_signals,
+    )
     return envs
