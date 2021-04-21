@@ -262,18 +262,23 @@ class EmbodiedTask:
             entities_config = self._config
 
         entities = OrderedDict()
-        for entity_name in entity_names:
-            entity_cfg = getattr(entities_config, entity_name)
-            entity_type = register_func(entity_cfg.TYPE)
-            assert (
-                entity_type is not None
-            ), f"invalid {entity_name} type {entity_cfg.TYPE}"
-            entities[entity_name] = entity_type(
-                sim=self._sim,
-                config=entity_cfg,
-                dataset=self._dataset,
-                task=self,
-            )
+        try:
+            for entity_name in entity_names:
+                entity_cfg = getattr(entities_config, entity_name)
+                entity_type = register_func(entity_cfg.TYPE)
+                assert (
+                    entity_type is not None
+                ), f"invalid {entity_name} type {entity_cfg.TYPE}"
+                entities[entity_name] = entity_type(
+                    sim=self._sim,
+                    config=entity_cfg,
+                    dataset=self._dataset,
+                    task=self,
+                )
+        except:
+            import pdb
+            pdb.set_trace()
+
         return entities
 
     def reset(self, episode: Episode):

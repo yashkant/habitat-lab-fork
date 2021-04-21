@@ -161,6 +161,8 @@ _C.TASK.TOP_DOWN_MAP.DRAW_VIEW_POINTS = True
 _C.TASK.TOP_DOWN_MAP.DRAW_GOAL_POSITIONS = True
 # Axes aligned bounding boxes
 _C.TASK.TOP_DOWN_MAP.DRAW_GOAL_AABBS = True
+_C.TASK.EOR_TOP_DOWN_MAP = _C.TASK.TOP_DOWN_MAP.clone()
+_C.TASK.EOR_TOP_DOWN_MAP.TYPE = "RearrangementTopDownMap"
 # -----------------------------------------------------------------------------
 # COLLISIONS MEASUREMENT
 # -----------------------------------------------------------------------------
@@ -303,7 +305,7 @@ _C.SIMULATOR.HABITAT_SIM_V0.GPU_GPU = False
 _C.SIMULATOR.HABITAT_SIM_V0.ALLOW_SLIDING = True
 _C.SIMULATOR.HABITAT_SIM_V0.ENABLE_PHYSICS = False
 _C.SIMULATOR.HABITAT_SIM_V0.PHYSICS_CONFIG_FILE = (
-    "./data/default.physics_config_dummy.json"
+    "./data/default.physics_config.json"
 )
 # -----------------------------------------------------------------------------
 # PYROBOT

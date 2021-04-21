@@ -230,3 +230,4 @@ class Registry(metaclass=Singleton):
 
 
 registry = Registry()
+registry.mapping["ignore_object_ids"] = []

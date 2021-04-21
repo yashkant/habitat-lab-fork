@@ -53,6 +53,21 @@ TOP_DOWN_MAP_COLORS[MAP_SHORTEST_PATH_COLOR] = [0, 200, 0]  # Green
 TOP_DOWN_MAP_COLORS[MAP_VIEW_POINT_INDICATOR] = [245, 150, 150]  # Light Red
 TOP_DOWN_MAP_COLORS[MAP_TARGET_BOUNDING_BOX] = [0, 175, 0]  # Green
 
+sprite_list = {}
+for i in range(1, 6):
+    for suffix in ["", "g", "c"]:
+        name = str(i) + suffix
+        sprite = imageio.imread(
+            os.path.join(
+                os.path.dirname(__file__),
+                "assets",
+                "maps_topdown_agent_sprite",
+                name + ".png",
+            )
+        )
+        sprite = np.ascontiguousarray((sprite))
+        sprite_list[name] = sprite
+
 
 def draw_agent(
     image: np.ndarray,
@@ -435,5 +450,49 @@ def colorize_draw_agent_and_fit_to_height(
         (top_down_width, top_down_height),
         interpolation=cv2.INTER_CUBIC,
     )
+
+    return top_down_map
+
+
+def draw_sprite(
+    image: np.ndarray,
+    sprite_name: str,
+    sprite_center_coord: Tuple[int, int],
+    sprite_rotation: float,
+    sprite_radius_px: int = 5,
+) -> np.ndarray:
+
+    sprite = sprite_list[sprite_name]
+    # Rotate before resize to keep good resolution.
+    rotated_sprite = scipy.ndimage.interpolation.rotate(
+        sprite, sprite_rotation * 180 / np.pi
+    )
+    # Rescale because rotation may result in larger image than original, but
+    # the sprite sprite size should stay the same.
+    initial_sprite_size = sprite.shape[0]
+    new_size = rotated_sprite.shape[0]
+    sprite_size_px = max(
+        1, int(sprite_radius_px * 2 * new_size / initial_sprite_size)
+    )
+    resized_sprite = cv2.resize(
+        rotated_sprite,
+        (sprite_size_px, sprite_size_px),
+        interpolation=cv2.INTER_LINEAR,
+    )
+    utils.paste_overlapping_image(image, resized_sprite, sprite_center_coord)
+    return image
+
+
+def draw_object_info(top_down_map, object_positions, suffix=""):
+
+    for i, obj_pos in enumerate(object_positions):
+        name = str(i + 1) + suffix
+        top_down_map = draw_sprite(
+            image=top_down_map,
+            sprite_name=name,
+            sprite_center_coord=obj_pos,
+            sprite_rotation=90,
+            sprite_radius_px=top_down_map.shape[0] // 32,
+        )
 
     return top_down_map
