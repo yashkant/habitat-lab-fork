@@ -83,6 +83,10 @@ class PointNavDatasetV1(Dataset):
                 scene = filename[: -len(scene_dataset_ext)]
                 scenes.append(scene)
         scenes.sort()
+
+        if registry.mapping["debug"]:
+            scenes = scenes[:1]
+
         return scenes
 
     def __init__(self, config: Optional[Config] = None) -> None:
@@ -93,8 +97,8 @@ class PointNavDatasetV1(Dataset):
 
         datasetfile_path = config.DATA_PATH.format(split=config.SPLIT)
         # obsolete
-        with gzip.open(datasetfile_path, "rt") as f:
-            self.from_json(f.read(), scenes_dir=config.SCENES_DIR)
+        # with gzip.open(datasetfile_path, "rt") as f:
+        #     self.from_json(f.read(), scenes_dir=config.SCENES_DIR)
 
         # Read separate file for each scene
         dataset_dir = os.path.dirname(datasetfile_path)

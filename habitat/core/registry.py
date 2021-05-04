@@ -231,3 +231,5 @@ class Registry(metaclass=Singleton):
 
 registry = Registry()
 registry.mapping["ignore_object_ids"] = []
+registry.mapping["ignore_object_ids_ray"] = []
+registry.mapping["debug"] = False
