@@ -124,7 +124,7 @@ class PointNavDatasetV1(Dataset):
             )
 
     def from_json(
-        self, json_str: str, scenes_dir: Optional[str] = None
+        self, json_str: str, scenes_dir: Optional[str] = None, **kwargs
     ) -> None:
         deserialized = json.loads(json_str)
         if CONTENT_SCENES_PATH_FIELD in deserialized:

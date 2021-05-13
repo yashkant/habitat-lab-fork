@@ -437,19 +437,19 @@ def colorize_draw_agent_and_fit_to_height(
         agent_radius_px=min(top_down_map.shape[0:2]) // 32,
     )
 
-    if top_down_map.shape[0] > top_down_map.shape[1]:
-        top_down_map = np.rot90(top_down_map, 1)
-
-    # scale top down map to align with rgb view
-    old_h, old_w, _ = top_down_map.shape
-    top_down_height = output_height
-    top_down_width = int(float(top_down_height) / old_h * old_w)
-    # cv2 resize (dsize is width first)
-    top_down_map = cv2.resize(
-        top_down_map,
-        (top_down_width, top_down_height),
-        interpolation=cv2.INTER_CUBIC,
-    )
+    # if top_down_map.shape[0] > top_down_map.shape[1]:
+    #     top_down_map = np.rot90(top_down_map, 1)
+    #
+    # # scale top down map to align with rgb view
+    # old_h, old_w, _ = top_down_map.shape
+    # top_down_height = output_height
+    # top_down_width = int(float(top_down_height) / old_h * old_w)
+    # # cv2 resize (dsize is width first)
+    # top_down_map = cv2.resize(
+    #     top_down_map,
+    #     (top_down_width, top_down_height),
+    #     interpolation=cv2.INTER_CUBIC,
+    # )
 
     return top_down_map
 
@@ -492,7 +492,7 @@ def draw_object_info(top_down_map, object_positions, suffix=""):
             sprite_name=name,
             sprite_center_coord=obj_pos,
             sprite_rotation=90,
-            sprite_radius_px=top_down_map.shape[0] // 32,
+            sprite_radius_px=top_down_map.shape[0] // 64,
         )
 
     return top_down_map

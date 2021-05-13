@@ -10,6 +10,16 @@ import random
 import numpy as np
 import torch
 
+import os
+import sys
+cwd = os.getcwd()
+pwd = os.path.dirname(cwd)
+ppwd = os.path.dirname(pwd)
+os.chdir("/home/kyash/Documents/cos-hab2/habitat-lab")
+
+for dir in [cwd, pwd, ppwd]:
+    sys.path.insert(1, dir)
+
 from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config

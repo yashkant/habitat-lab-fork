@@ -5,10 +5,14 @@
 # LICENSE file in the root directory of this source tree.
 
 import random
+import time
+from collections import defaultdict
 from typing import List, Type, Union
 
 import habitat
 from habitat import Config, Env, RLEnv, VectorEnv, make_dataset
+from habitat.core.registry import registry
+from tqdm import tqdm
 
 
 def make_env_fn(
@@ -67,13 +71,18 @@ def construct_envs(
                 "No scenes to load, multiple process logic relies on being able to split scenes uniquely between processes"
             )
 
-        if len(scenes) < num_processes:
+        if len(scenes) < num_processes and not registry.mapping["debug"]:
             raise RuntimeError(
                 "reduce the number of processes as there "
                 "aren't enough number of scenes"
             )
 
         random.shuffle(scenes)
+    # hack to run overfit faster
+    if len(scenes) < num_processes and registry.mapping["debug"]:
+        repeat_scenes = num_processes // len(scenes)
+        scenes = scenes * repeat_scenes
+        assert len(scenes) >= num_processes
 
     scene_splits = [[] for _ in range(num_processes)]
     for idx, scene in enumerate(scenes):
@@ -100,11 +109,13 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    # # debug code
-    # env = make_env_fn(configs[0], env_classes[0])
-    # env.reset()
+    # debug code
+    env = make_env_fn(configs[0], env_classes[0])
+    env.reset()
+    from cos_eor.utils.debug import debug_viewer
+    debug_viewer(env)
     # observations = []
-    # for i in range(600):
+    # for i in range(60):
     #     debug_action = env.action_space.sample()
     #     obs = env.step(action=debug_action)[0]
     #     observations.append(obs)
@@ -119,4 +130,29 @@ def construct_envs(
         env_fn_args=tuple(zip(configs, env_classes)),
         workers_ignore_signals=workers_ignore_signals,
     )
+
+    # # timing code
+    # envs.reset()
+    # # try 400 random actions and report average time for each category
+    # possible_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
+    # num_actions = len(possible_actions)
+    # actions = [random.choice(range(num_actions)) for _ in range(80)]
+    # envs_actions = [[action] * envs.num_envs for action in actions]
+    # envs_time = defaultdict(list)
+    #
+    # for actions in tqdm(envs_actions, desc="Debug action timings"):
+    #     start = time.time()
+    #     envs.step(actions)
+    #     end = time.time()
+    #     envs_time[actions[0]].append(end-start)
+    #
+    # for action, times in envs_time.items():
+    #     print(f"Action: {possible_actions[action]} || "
+    #           f"Avg. Time over {len(times)} "
+    #           f"tries: {round(sum(times)/len(times), 4)} secs || "
+    #           f"Num Processes: {envs.num_envs}")
+    #
+    # import pdb
+    # pdb.set_trace()
+
     return envs
