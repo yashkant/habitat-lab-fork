@@ -10,7 +10,7 @@ from collections import defaultdict
 from typing import List, Type, Union
 
 import habitat
-from habitat import Config, Env, RLEnv, VectorEnv, make_dataset
+from habitat import Config, Env, RLEnv, VectorEnv, make_dataset, SequentialEnv
 from habitat.core.registry import registry
 from tqdm import tqdm
 
@@ -110,10 +110,14 @@ def construct_envs(
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
     # debug code
-    env = make_env_fn(configs[0], env_classes[0])
-    env.reset()
-    from cos_eor.utils.debug import debug_viewer
-    debug_viewer(env)
+    # env = make_env_fn(configs[0], env_classes[0])
+    # env.reset()
+    #
+    # import pdb
+    # pdb.set_trace()
+
+    # from cos_eor.utils.debug import debug_viewer
+    # debug_viewer(env)
     # observations = []
     # for i in range(60):
     #     debug_action = env.action_space.sample()
@@ -125,24 +129,55 @@ def construct_envs(
     # make_video_cv2(observations, prefix="debug-rgb-", sensor="rgb")
     # make_video_cv2(observations, prefix="debug-rgb-third-", sensor="rgb_3rd_person")
 
-    envs = habitat.VectorEnv(
+    envs = habitat.ThreadedVectorEnv(
         make_env_fn=make_env_fn,
         env_fn_args=tuple(zip(configs, env_classes)),
         workers_ignore_signals=workers_ignore_signals,
     )
 
-    # # timing code
+    # envs = habitat.VectorEnv(
+    #     make_env_fn=make_env_fn,
+    #     env_fn_args=tuple(zip(configs, env_classes)),
+    #     workers_ignore_signals=workers_ignore_signals,
+    # )
+
+    # envs = habitat.SequentialEnv(
+    #     make_env_fn=make_env_fn,
+    #     env_fn_args=tuple(zip(configs, env_classes)),
+    # )
+
+    # timing code
+
+    # env = make_env_fn(configs[0], env_classes[0])
+    # num_envs = 1
+    # env.reset()
+    # num_envs = envs.num_envs
     # envs.reset()
+
     # # try 400 random actions and report average time for each category
     # possible_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
     # num_actions = len(possible_actions)
-    # actions = [random.choice(range(num_actions)) for _ in range(80)]
-    # envs_actions = [[action] * envs.num_envs for action in actions]
+    # actions = [2 for _ in range(1000)]
+    # envs_actions = [[action] * num_envs for action in actions]
     # envs_time = defaultdict(list)
     #
     # for actions in tqdm(envs_actions, desc="Debug action timings"):
     #     start = time.time()
+    #
+    #     # individual_times = []
+    #     # for i in range(num_envs):
+    #     #     start_time = time.time()
+    #     #     envs.step_at(i, actions[i])
+    #     #     time_take = time.time() - start_time
+    #     #     # print(f"Step at {i} w/ action {actions[i]}: {time_take}")
+    #     #     individual_times.append(time_take)
+    #
+    #     mp_time = time.time()
     #     envs.step(actions)
+    #     # print(
+    #         # f"Average individual times: {sum(individual_times)/len(individual_times)}"
+    #         #   f" // MP time: {time.time()-mp_time}")
+    #     # env.step(action=actions[0])
     #     end = time.time()
     #     envs_time[actions[0]].append(end-start)
     #
@@ -150,7 +185,7 @@ def construct_envs(
     #     print(f"Action: {possible_actions[action]} || "
     #           f"Avg. Time over {len(times)} "
     #           f"tries: {round(sum(times)/len(times), 4)} secs || "
-    #           f"Num Processes: {envs.num_envs}")
+    #           f"Num Processes: {num_envs}")
     #
     # import pdb
     # pdb.set_trace()
