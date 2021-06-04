@@ -10,6 +10,7 @@ from typing import List, Optional, Union
 import numpy as np
 
 from habitat import get_config as get_task_config
+from habitat import get_config_new as get_task_config_new
 from habitat.config import Config as CN
 
 DEFAULT_CONFIG_DIR = "configs/"
@@ -208,12 +209,14 @@ def get_config(
         for config_path in config_paths:
             config.merge_from_file(config_path)
 
-    if opts:
-        for k, v in zip(opts[0::2], opts[1::2]):
-            if k == "BASE_TASK_CONFIG_PATH":
-                config.BASE_TASK_CONFIG_PATH = v
+    # if opts:
+    #     for k, v in zip(opts[0::2], opts[1::2]):
+    #         if k == "BASE_TASK_CONFIG_PATH":
+    #             config.BASE_TASK_CONFIG_PATH = v
 
-    config.TASK_CONFIG = get_task_config(config.BASE_TASK_CONFIG_PATH)
+    # config.TASK_CONFIG = get_task_config(config.BASE_TASK_CONFIG_PATH)
+    config.TASK_CONFIG = get_task_config_new([config.BASE_TASK_CONFIG])
+
     if opts:
         config.CMD_TRAILING_OPTS = config.CMD_TRAILING_OPTS + opts
         config.merge_from_list(config.CMD_TRAILING_OPTS)

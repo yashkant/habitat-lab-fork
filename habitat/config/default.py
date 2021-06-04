@@ -367,7 +367,8 @@ _C.DATASET.FILTER_SCENES_PATH = ""
 # COMMONSENSE-EOR TASK
 # -----------------------------------------------------------------------------
 _C.TASK.ACTIONS.GRAB_RELEASE = CN()
-_C.TASK.ACTIONS.GRAB_RELEASE.TYPE = "GrabOrReleaseAction"
+_C.TASK.ACTIONS.GRAB_RELEASE.TYPE = "GrabOrReleaseActionIdBased"
+_C.TASK.OBJECT_ANNOTATIONS = "cos_eor/utils/object_metadata.json"
 
 # play script
 _C.TASK.ACTIONS.GRAB_RELEASE_PLAY = CN()
@@ -463,6 +464,21 @@ def get_config(
 
         for config_path in config_paths:
             config.merge_from_file(config_path)
+
+    if opts:
+        config.merge_from_list(opts)
+
+    config.freeze()
+    return config
+
+
+def get_config_new(
+    configs,
+    opts: Optional[list] = None,
+) -> CN:
+    config = _C.clone()
+    for _config in configs:
+        config.merge_from_other_cfg(_config)
 
     if opts:
         config.merge_from_list(opts)

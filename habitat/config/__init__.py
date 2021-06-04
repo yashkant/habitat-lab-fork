@@ -120,6 +120,6 @@ def main():
 
 ```"""
 
-from habitat.config.default import Config, get_config
+from habitat.config.default import Config, get_config, get_config_new
 
 __all__ = ["Config", "get_config"]

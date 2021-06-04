@@ -10,7 +10,7 @@ from collections import defaultdict
 from typing import List, Type, Union
 
 import habitat
-from habitat import Config, Env, RLEnv, VectorEnv, make_dataset, SequentialEnv
+from habitat import Config, Env, RLEnv, VectorEnv, make_dataset
 from habitat.core.registry import registry
 from tqdm import tqdm
 
@@ -109,15 +109,12 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    # debug code
-    # env = make_env_fn(configs[0], env_classes[0])
-    # env.reset()
-    #
-    # import pdb
-    # pdb.set_trace()
+    if registry.mapping["debug"]:
+        env = make_env_fn(configs[0], env_classes[0])
+        env.reset()
+        from cos_eor.utils.debug import debug_viewer
+        debug_viewer(env)
 
-    # from cos_eor.utils.debug import debug_viewer
-    # debug_viewer(env)
     # observations = []
     # for i in range(60):
     #     debug_action = env.action_space.sample()
