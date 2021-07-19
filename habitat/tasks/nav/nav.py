@@ -168,6 +168,7 @@ class PointGoalSensor(Sensor):
             source_rotation.inverse(), direction_vector
         )
 
+        # YK: POLAR for Rearrangment
         if self._goal_format == "POLAR":
             if self._dimensionality == 2:
                 rho, phi = cartesian_to_polar(

@@ -173,7 +173,7 @@ class HabitatSimPyRobotActionSpaceConfiguration(ActionSpaceConfiguration):
                 "look_down",
                 habitat_sim.ActuationSpec(amount=self.config.TILT_ANGLE),
             ),
-            # The perfect actions are needed for the oracle planner
+            # The perfect actions are needed for the -oracle planner
             "_forward": habitat_sim.ActionSpec(
                 "move_forward",
                 habitat_sim.ActuationSpec(

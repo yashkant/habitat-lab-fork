@@ -3,7 +3,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import logging
 import random
 import time
 from collections import defaultdict
@@ -71,15 +71,17 @@ def construct_envs(
                 "No scenes to load, multiple process logic relies on being able to split scenes uniquely between processes"
             )
 
-        if len(scenes) < num_processes and not registry.mapping["debug"]:
-            raise RuntimeError(
-                "reduce the number of processes as there "
-                "aren't enough number of scenes"
+        if len(scenes) < num_processes:
+            logging.log(level=logging.WARNING, msg=
+                f"you might want to reduce the number of processes as there "
+                f"aren't enough number of scenes "
+                f"// processes: {num_processes} and scenes: {len(scenes)}"
             )
 
         random.shuffle(scenes)
+
     # hack to run overfit faster
-    if len(scenes) < num_processes and registry.mapping["debug"]:
+    if len(scenes) < num_processes:
         repeat_scenes = num_processes // len(scenes)
         scenes = scenes * repeat_scenes
         assert len(scenes) >= num_processes
@@ -146,7 +148,6 @@ def construct_envs(
     # timing code
 
     # env = make_env_fn(configs[0], env_classes[0])
-    # num_envs = 1
     # env.reset()
     # num_envs = envs.num_envs
     # envs.reset()

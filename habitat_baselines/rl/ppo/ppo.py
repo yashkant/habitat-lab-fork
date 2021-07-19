@@ -7,8 +7,8 @@
 import torch
 from torch import nn as nn
 from torch import optim as optim
-import ipdb 
-import traceback 
+import ipdb
+import traceback
 
 EPS_PPO = 1e-5
 
@@ -85,7 +85,7 @@ class PPO(nn.Module):
                     old_action_log_probs_batch,
                     adv_targ,
                 ) = sample
-                
+
                 # Reshape to do in a single forward pass for all steps
                 (
                     values,
@@ -146,7 +146,7 @@ class PPO(nn.Module):
                 action_loss_epoch += action_loss.item()
                 dist_entropy_epoch += dist_entropy.item()
 
-                # Check for nan!! 
+                # Check for nan!!
                 if torch.isnan(self.actor_critic.net.goal_embedding.weight).any():
                     print(traceback.format_stack())
                     ipdb.set_trace()

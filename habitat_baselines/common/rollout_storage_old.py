@@ -81,13 +81,20 @@ class RolloutStorage:
         rewards,
         masks,
     ):
-        for sensor in observations:
-            self.observations[sensor][self.step + 1].copy_(
-                observations[sensor]
+        try:
+            for sensor in observations:
+                if sensor in ["fail_action"]:
+                    continue
+                self.observations[sensor][self.step + 1].copy_(
+                    observations[sensor]
+                )
+            self.recurrent_hidden_states[self.step + 1].copy_(
+                recurrent_hidden_states
             )
-        self.recurrent_hidden_states[self.step + 1].copy_(
-            recurrent_hidden_states
-        )
+        except:
+            import pdb
+            pdb.set_trace()
+
         self.actions[self.step].copy_(actions)
         self.prev_actions[self.step + 1].copy_(actions)
         self.action_log_probs[self.step].copy_(action_log_probs)
