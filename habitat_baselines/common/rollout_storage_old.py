@@ -27,8 +27,11 @@ class RolloutStorage:
             self.observations[sensor] = torch.zeros(
                 num_steps + 1,
                 num_envs,
-                *observation_space.spaces[sensor].shape
+                *observation_space.spaces[sensor].shape,
+                dtype=getattr(torch, str(observation_space.spaces[sensor].dtype))
             )
+
+        print(f"{self.observations['cos_eor'].dtype}")
 
         self.recurrent_hidden_states = torch.zeros(
             num_steps + 1,

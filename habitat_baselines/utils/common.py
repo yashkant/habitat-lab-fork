@@ -38,6 +38,8 @@ from habitat.utils.visualizations.utils import images_to_video
 from habitat_baselines.common.tensor_dict import DictTree, TensorDict
 from habitat_baselines.common.tensorboard_utils import TensorboardWriter
 
+from cos_eor.utils.objects_to_byte_tensor import enc_obj2bytes
+
 cv2 = try_cv2_import()
 
 
@@ -164,6 +166,10 @@ def batch_obs(
         for sensor_name, sensor in obs.items():
             if isinstance(sensor, np.ndarray) and sensor.dtype == np.uint32:
                 sensor = sensor.astype(np.int32)
+            elif isinstance(sensor, dict):
+                import pdb
+                pdb.set_trace()
+                sensor = enc_obj2bytes(sensor)
             sensor = torch.as_tensor(sensor)
             if cache is None:
                 batch[sensor_name].append(sensor)

@@ -380,10 +380,10 @@ _C.SIMULATOR.CROSSHAIR_POS = [360, 540]  # (0.5xW, 0.75xH) from top-left
 _C.SIMULATOR.GRAB_DISTANCE = 2.0
 _C.SIMULATOR.VISUAL_SENSOR = "rgb"
 # -----------------------------------------------------------------------------
-# # REARRANGEMENT TASK GRIPPED OBJECT SENSOR
+# # REARRANGEMENT TASK SENSOR
 # -----------------------------------------------------------------------------
-_C.TASK.GRIPPED_OBJECT_SENSOR = CN()
-_C.TASK.GRIPPED_OBJECT_SENSOR.TYPE = "GrippedObjectSensor"
+_C.TASK.COS_EOR_SENSOR = CN()
+_C.TASK.COS_EOR_SENSOR.TYPE = "CosEorSensor"
 # -----------------------------------------------------------------------------
 # # REARRANGEMENT TASK ALL OBJECT POSITIONS SENSOR
 # -----------------------------------------------------------------------------
