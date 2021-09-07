@@ -167,8 +167,6 @@ def batch_obs(
             if isinstance(sensor, np.ndarray) and sensor.dtype == np.uint32:
                 sensor = sensor.astype(np.int32)
             elif isinstance(sensor, dict):
-                import pdb
-                pdb.set_trace()
                 sensor = enc_obj2bytes(sensor)
             sensor = torch.as_tensor(sensor)
             if cache is None:
