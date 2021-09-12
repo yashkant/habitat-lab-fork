@@ -114,6 +114,7 @@ def construct_envs(
     if registry.mapping["debug"]:
         env = make_env_fn(configs[0], env_classes[0])
         env.reset()
+        # env.step(action={"action": 1})
         from cos_eor.utils.debug import debug_viewer
         debug_viewer(env)
 
@@ -133,7 +134,9 @@ def construct_envs(
         env_fn_args=tuple(zip(configs, env_classes)),
         workers_ignore_signals=workers_ignore_signals,
     )
-
+    # envs.reset()
+    # inp1 = [{"action": {"action": 1, "action_args": {"iid": 10}}}]
+    # envs.step(inp1)
     # envs = habitat.VectorEnv(
     #     make_env_fn=make_env_fn,
     #     env_fn_args=tuple(zip(configs, env_classes)),
