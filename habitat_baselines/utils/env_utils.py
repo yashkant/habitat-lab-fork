@@ -114,7 +114,7 @@ def construct_envs(
     if registry.mapping["debug"]:
         env = make_env_fn(configs[0], env_classes[0])
         env.reset()
-        # env.step(action={"action": 1})
+        env.step(action={"action": 3, "action_args": {"iid": -1}})
         from cos_eor.utils.debug import debug_viewer
         debug_viewer(env)
 
