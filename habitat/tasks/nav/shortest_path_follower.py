@@ -84,6 +84,18 @@ class ShortestPathFollower:
 
         return self._get_return_value(next_action)
 
+    def get_path(self, goal_pos):
+        self._build_follower()
+        assert self._follower is not None
+        try:
+            path = self._follower.find_path(goal_pos)
+        except habitat_sim.errors.GreedyFollowerError as e:
+            if self._stop_on_error:
+                path = [-1]
+            else:
+                raise e
+        return path
+
     @property
     def mode(self):
         warnings.warn(".mode is depricated", DeprecationWarning)

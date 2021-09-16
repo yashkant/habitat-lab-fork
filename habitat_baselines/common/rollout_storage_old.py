@@ -86,25 +86,23 @@ class RolloutStorage:
     ):
         try:
             for sensor in observations:
-                if sensor in ["fail_action"]:
+                # these are pulled-out in rewards
+                if sensor in ["fail_action", "gripped_object_id"]:
                     continue
                 self.observations[sensor][self.step + 1].copy_(
                     observations[sensor]
                 )
-            self.recurrent_hidden_states[self.step + 1].copy_(
-                recurrent_hidden_states
-            )
+            # self.recurrent_hidden_states[self.step + 1].copy_(recurrent_hidden_states)
         except:
             import pdb
             pdb.set_trace()
 
-        self.actions[self.step].copy_(actions)
-        self.prev_actions[self.step + 1].copy_(actions)
-        self.action_log_probs[self.step].copy_(action_log_probs)
-        self.value_preds[self.step].copy_(value_preds)
-        self.rewards[self.step].copy_(rewards)
+        # self.actions[self.step].copy_(actions)
+        # self.prev_actions[self.step + 1].copy_(actions)
+        # self.action_log_probs[self.step].copy_(action_log_probs)
+        # self.value_preds[self.step].copy_(value_preds)
+        # self.rewards[self.step].copy_(rewards)
         self.masks[self.step + 1].copy_(masks)
-
         self.step = self.step + 1
 
     def after_update(self):
