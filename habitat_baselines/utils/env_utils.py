@@ -111,14 +111,12 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    if registry.mapping["debug"]:
-        env = make_env_fn(configs[0], env_classes[0])
-        env.reset()
-        x = env.step(action={"action": 3, "action_args": {"iid": -1}})
-        import pdb
-        pdb.set_trace()
-        from cos_eor.utils.debug import debug_viewer
-        debug_viewer(env)
+    # if registry.mapping["debug"]:
+    #     env = make_env_fn(configs[0], env_classes[0])
+    #     env.reset()
+    #     x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+    #     from cos_eor.utils.debug import debug_viewer
+    #     debug_viewer(env)
 
     # observations = []
     # for i in range(60):
@@ -136,6 +134,10 @@ def construct_envs(
         env_fn_args=tuple(zip(configs, env_classes)),
         workers_ignore_signals=workers_ignore_signals,
     )
+
+    if registry.mapping["debug"]:
+        time_envs(envs, config)
+
     # envs.reset()
     # inp1 = [{"action": {"action": 1, "action_args": {"iid": 10}}}]
     # envs.step(inp1)
@@ -145,52 +147,42 @@ def construct_envs(
     #     workers_ignore_signals=workers_ignore_signals,
     # )
 
-    # envs = habitat.SequentialEnv(
-    #     make_env_fn=make_env_fn,
-    #     env_fn_args=tuple(zip(configs, env_classes)),
-    # )
-
-    # timing code
-
-    # env = make_env_fn(configs[0], env_classes[0])
-    # env.reset()
-    # num_envs = envs.num_envs
-    # envs.reset()
-
-    # # try 400 random actions and report average time for each category
-    # possible_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
-    # num_actions = len(possible_actions)
-    # actions = [2 for _ in range(1000)]
-    # envs_actions = [[action] * num_envs for action in actions]
-    # envs_time = defaultdict(list)
-    #
-    # for actions in tqdm(envs_actions, desc="Debug action timings"):
-    #     start = time.time()
-    #
-    #     # individual_times = []
-    #     # for i in range(num_envs):
-    #     #     start_time = time.time()
-    #     #     envs.step_at(i, actions[i])
-    #     #     time_take = time.time() - start_time
-    #     #     # print(f"Step at {i} w/ action {actions[i]}: {time_take}")
-    #     #     individual_times.append(time_take)
-    #
-    #     mp_time = time.time()
-    #     envs.step(actions)
-    #     # print(
-    #         # f"Average individual times: {sum(individual_times)/len(individual_times)}"
-    #         #   f" // MP time: {time.time()-mp_time}")
-    #     # env.step(action=actions[0])
-    #     end = time.time()
-    #     envs_time[actions[0]].append(end-start)
-    #
-    # for action, times in envs_time.items():
-    #     print(f"Action: {possible_actions[action]} || "
-    #           f"Avg. Time over {len(times)} "
-    #           f"tries: {round(sum(times)/len(times), 4)} secs || "
-    #           f"Num Processes: {num_envs}")
-    #
-    # import pdb
-    # pdb.set_trace()
-
     return envs
+
+
+def time_envs(envs, config, num_steps=100):
+    # timing code
+    num_envs = envs.num_envs
+    envs.reset()
+    # try 400 random actions and report average time for each category
+    possible_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
+    possible_actions = [idx for idx, a in enumerate(possible_actions) if a.lower() not in ["stop", "grab_release"]]
+    actions = [random.choice(possible_actions) for _ in range(num_steps)]
+    envs_actions = [[action] * num_envs for action in actions]
+    envs_time = defaultdict(list)
+
+    for actions in tqdm(envs_actions, desc="Debug action timings"):
+        start = time.time()
+
+        # individual_times = []
+        # for i in range(num_envs):
+        #     start_time = time.time()
+        #     envs.step_at(i, actions[i])
+        #     time_take = time.time() - start_time
+        #     # print(f"Step at {i} w/ action {actions[i]}: {time_take}")
+        #     individual_times.append(time_take)
+
+        mp_time = time.time()
+        envs.step(actions)
+        # print(
+        # f"Average individual times: {sum(individual_times)/len(individual_times)}"
+        #   f" // MP time: {time.time()-mp_time}")
+        # env.step(action=actions[0])
+        end = time.time()
+        envs_time[actions[0]].append(end - start)
+
+    for action, times in envs_time.items():
+        print(f"Action: {possible_actions[action]} || "
+              f"Avg. Time over {len(times)} "
+              f"tries: {round(sum(times) / len(times), 4)} secs || "
+              f"Num Processes: {num_envs}")
