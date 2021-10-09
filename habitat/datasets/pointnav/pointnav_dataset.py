@@ -27,7 +27,7 @@ class PointNavDatasetV1(Dataset):
     r"""Class inherited from Dataset that loads Point Navigation dataset."""
 
     episodes: List[NavigationEpisode]
-    content_scenes_path: str = "{data_path}/content/{scene}.json.gz"
+    content_scenes_path: str = "{data_path}/{scene}.json.gz"
 
     @staticmethod
     def check_config_paths_exist(config: Config) -> bool:
