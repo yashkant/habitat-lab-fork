@@ -129,7 +129,7 @@ class ResNetEncoder(nn.Module):
             final_spatial = int(
                 spatial_size * self.backbone.final_spatial_compress
             )
-            after_compression_flat_size = 2048
+            after_compression_flat_size = 512
             num_compression_channels = int(
                 round(after_compression_flat_size / (final_spatial ** 2))
             )
