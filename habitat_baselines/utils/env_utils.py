@@ -111,12 +111,15 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    # if registry.mapping["debug"]:
-    #     env = make_env_fn(configs[0], env_classes[0])
-    #     env.reset()
-    #     x = env.step(action={"action": 3, "action_args": {"iid": -1}})
-    #     from cos_eor.utils.debug import debug_viewer
-    #     debug_viewer(env)
+    if registry.mapping["debug"]:
+        env = make_env_fn(configs[0], env_classes[0])
+        env.reset()
+        x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+        from cos_eor.utils.debug import debug_viewer
+        debug_viewer(env)
+        import pdb
+        pdb.set_trace()
+
 
     # observations = []
     # for i in range(60):
@@ -135,8 +138,8 @@ def construct_envs(
         workers_ignore_signals=workers_ignore_signals,
     )
 
-    if registry.mapping["debug"]:
-        time_envs(envs, config)
+    # if registry.mapping["debug"]:
+    #     time_envs(envs, config)
 
     # envs.reset()
     # inp1 = [{"action": {"action": 1, "action_args": {"iid": 10}}}]

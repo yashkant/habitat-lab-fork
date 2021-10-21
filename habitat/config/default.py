@@ -368,9 +368,10 @@ _C.DATASET.FILTER_SCENES_PATH = ""
 # -----------------------------------------------------------------------------
 _C.TASK.ACTIONS.GRAB_RELEASE = CN()
 _C.TASK.ACTIONS.GRAB_RELEASE.TYPE = "GrabOrReleaseActionIdBased"
-_C.TASK.OBJECT_ANNOTATIONS = "cos_eor/utils/object_metadata.json"
-_C.TASK.ACTIONS.GRAB_RELEASE.GRAB_DISTANCE = 3.0
-_C.TASK.ACTIONS.GRAB_RELEASE.DUMMY_GRAB = False
+_C.TASK.OBJECT_ANNOTATIONS = "cos_eor/scripts/dump/scale_rots_all.npy"
+_C.TASK.ACTIONS.GRAB_RELEASE.GRAB_DISTANCE = 1.0
+_C.TASK.ACTIONS.GRAB_RELEASE.GRAB_TYPE = "id_based"
+# _C.TASK.ACTIONS.GRAB_RELEASE.GRAB_TYPE = "crosshair"
 
 # play script
 _C.TASK.ACTIONS.GRAB_RELEASE_PLAY = CN()
