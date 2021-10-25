@@ -21,14 +21,15 @@ from habitat_baselines.rl.models.simple_cnn import SimpleCNN
 
 
 class Policy(nn.Module, metaclass=abc.ABCMeta):
-    def __init__(self, net, dim_actions):
+    def __init__(self, net, dim_actions, init_actions=True):
         super().__init__()
         self.net = net
         self.dim_actions = dim_actions
-
-        self.action_distribution = CategoricalNet(
-            self.net.output_size, self.dim_actions
-        )
+        self.init_actions = init_actions
+        if init_actions:
+            self.action_distribution = CategoricalNet(
+                self.net.output_size, self.dim_actions
+            )
         self.critic = CriticHead(self.net.output_size)
 
     def forward(self, *x):
@@ -42,6 +43,18 @@ class Policy(nn.Module, metaclass=abc.ABCMeta):
         masks,
         deterministic=False,
     ):
+        '''
+        (Pdb) self.action_distribution
+        CategoricalNet(
+          (linear): Linear(in_features=256, out_features=7, bias=True)
+        )
+
+        (Pdb) self.critic
+        CriticHead(
+          (fc): Linear(in_features=256, out_features=1, bias=True)
+        )
+
+        '''
         features, rnn_hidden_states = self.net(
             observations, rnn_hidden_states, prev_actions, masks
         )
