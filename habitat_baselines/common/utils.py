@@ -28,7 +28,7 @@ class Flatten(nn.Module):
 
 class CustomFixedCategorical(torch.distributions.Categorical):
     def sample(self, sample_shape=torch.Size()):  # noqa: B008
-        return super().sample().unsqueeze(-1)
+        return super().sample()
 
     def log_probs(self, actions):
         return (

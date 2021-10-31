@@ -87,7 +87,7 @@ class RolloutStorage:
         try:
             for sensor in observations:
                 # these are pulled-out in rewards
-                if sensor in ["fail_action", "gripped_object_id"]:
+                if sensor in ["fail_action"]:
                     continue
                 self.observations[sensor][self.step + 1].copy_(
                     observations[sensor]
