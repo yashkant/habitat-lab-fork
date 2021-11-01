@@ -146,10 +146,10 @@ class PPO(nn.Module):
                 action_loss_epoch += action_loss.item()
                 dist_entropy_epoch += dist_entropy.item()
 
-                # Check for nan!!
-                if torch.isnan(self.actor_critic.net.goal_embedding.weight).any():
-                    print(traceback.format_stack())
-                    ipdb.set_trace()
+                # # Check for nan!!
+                # if torch.isnan(self.actor_critic.net.goal_embedding.weight).any():
+                #     print(traceback.format_stack())
+                #     ipdb.set_trace()
 
         num_updates = self.ppo_epoch * self.num_mini_batch
 

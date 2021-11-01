@@ -6,7 +6,7 @@
 r"""Implements tasks and measurements needed for training and benchmarking of
 ``habitat.Agent`` inside ``habitat.Env``.
 """
-
+import time
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -305,8 +305,10 @@ class EmbodiedTask:
         ), f"Can't find '{action_name}' action in {self.actions.keys()}."
 
         task_action = self.actions[action_name]
+        init_time = time.time()
         observations = task_action.step(**action["action_args"],
                                         task=self, episode=episode)
+        action_time = time.time()
         observations.update(
             self.sensor_suite.get_observations(
                 observations=observations,
@@ -315,11 +317,12 @@ class EmbodiedTask:
                 task=self,
             )
         )
+        sensor_time = time.time()
 
         self._is_episode_active = self._check_episode_is_active(
             observations=observations, action=action, episode=episode
         )
-
+        # print(f"action: {action_time - init_time} | sensor: {sensor_time - action_time} | total: {sensor_time - init_time}")
         return observations
 
     def get_action_name(self, action_index: int):
