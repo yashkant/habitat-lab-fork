@@ -520,7 +520,8 @@ class RNNStateEncoderOld(nn.Module):
 
         # steps in sequence which have zero for any agent. Assume t=0 has
         # a zero in it.
-        has_zeros = (masks[1:] == 0.0).any(dim=-1).nonzero().squeeze().cpu()
+        # has_zeros = (masks[1:] == 0.0).any(dim=-1).nonzero().squeeze().cpu()
+        has_zeros = torch.nonzero((masks[1:] == 0.0).any(dim=-1)).squeeze().cpu()
 
         # +1 to correct the masks[1:]
         if has_zeros.dim() == 0:
