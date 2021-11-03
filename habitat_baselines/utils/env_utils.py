@@ -111,15 +111,24 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    if registry.mapping["debug"]:
-        env = make_env_fn(configs[0], env_classes[0])
-        env.reset()
-        x = env.step(action={"action": 3, "action_args": {"iid": -1}})
-        from cos_eor.utils.debug import debug_viewer
-        debug_viewer(env)
-        import pdb
-        pdb.set_trace()
+    # if registry.mapping["debug"]:
+    #     env = make_env_fn(configs[0], env_classes[0])
+    #     env.reset()
+    #     time_env(env, config)
+    #     # x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+    #     # from cos_eor.utils.debug import debug_viewer
+    #     # debug_viewer(env)
+    #     # import pdb
+    #     # pdb.set_trace()
+    #     del env
 
+    """
+    Action: TURN_LEFT || Tries: 185 ||Avg Time / Num Processes: 0.0036 secs || Num Processes: 1
+    Action: LOOK_UP || Tries: 205 ||Avg Time / Num Processes: 0.0035 secs || Num Processes: 1
+    Action: TURN_RIGHT || Tries: 187 ||Avg Time / Num Processes: 0.0035 secs || Num Processes: 1
+    Action: LOOK_DOWN || Tries: 210 ||Avg Time / Num Processes: 0.0036 secs || Num Processes: 1
+    Action: MOVE_FORWARD || Tries: 213 ||Avg Time / Num Processes: 0.0035 secs || Num Processes: 1
+    """
 
     # observations = []
     # for i in range(60):
@@ -132,60 +141,109 @@ def construct_envs(
     # make_video_cv2(observations, prefix="debug-rgb-", sensor="rgb")
     # make_video_cv2(observations, prefix="debug-rgb-third-", sensor="rgb_3rd_person")
 
-    envs = habitat.ThreadedVectorEnv(
-        make_env_fn=make_env_fn,
-        env_fn_args=tuple(zip(configs, env_classes)),
-        workers_ignore_signals=workers_ignore_signals,
-    )
-
-    # if registry.mapping["debug"]:
-    #     time_envs(envs, config)
-
-    # envs.reset()
-    # inp1 = [{"action": {"action": 1, "action_args": {"iid": 10}}}]
-    # envs.step(inp1)
-    # envs = habitat.VectorEnv(
+    # envs = habitat.ThreadedVectorEnv(
     #     make_env_fn=make_env_fn,
     #     env_fn_args=tuple(zip(configs, env_classes)),
     #     workers_ignore_signals=workers_ignore_signals,
     # )
+    """
+    Action: LOOK_DOWN || Tries: 189 ||Avg Time / Num Processes: 0.0058 secs || Num Processes: 8
+    Action: TURN_LEFT || Tries: 219 ||Avg Time / Num Processes: 0.0059 secs || Num Processes: 8
+    Action: TURN_RIGHT || Tries: 200 ||Avg Time / Num Processes: 0.0058 secs || Num Processes: 8
+    Action: LOOK_UP || Tries: 194 ||Avg Time / Num Processes: 0.0059 secs || Num Processes: 8
+    Action: MOVE_FORWARD || Tries: 198 ||Avg Time / Num Processes: 0.006 secs || Num Processes: 8
+    """
+
+    envs = habitat.VectorEnv(
+        make_env_fn=make_env_fn,
+        env_fn_args=tuple(zip(configs, env_classes)),
+        workers_ignore_signals=workers_ignore_signals,
+    )
+    """
+    Without L2 calculations and PP action
+    Action: LOOK_UP || Tries: 213 ||Avg Time / Num Processes: 0.0014 secs || Num Processes: 8
+    Action: LOOK_DOWN || Tries: 212 ||Avg Time / Num Processes: 0.0014 secs || Num Processes: 8
+    Action: MOVE_FORWARD || Tries: 197 ||Avg Time / Num Processes: 0.0014 secs || Num Processes: 8
+    Action: TURN_RIGHT || Tries: 206 ||Avg Time / Num Processes: 0.0014 secs || Num Processes: 8
+    Action: TURN_LEFT || Tries: 172 ||Avg Time / Num Processes: 0.0019 secs || Num Processes: 8
+    """
+
+    """
+    With L2 calculations, but no PP action
+    Action: LOOK_UP || Tries: 213 ||Avg Time / Num Processes: 0.0024 secs || Num Processes: 8
+    Action: LOOK_DOWN || Tries: 212 ||Avg Time / Num Processes: 0.0025 secs || Num Processes: 8
+    Action: MOVE_FORWARD || Tries: 197 ||Avg Time / Num Processes: 0.0024 secs || Num Processes: 8
+    Action: TURN_RIGHT || Tries: 206 ||Avg Time / Num Processes: 0.0024 secs || Num Processes: 8
+    Action: TURN_LEFT || Tries: 172 ||Avg Time / Num Processes: 0.0029 secs || Num Processes: 8
+    """
+
+    """
+    With L2 calculations, and PP action
+    """
+
+    if registry.mapping["debug"]:
+        time_envs(envs, config)
+        import pdb
+        pdb.set_trace()
 
     return envs
 
 
-def time_envs(envs, config, num_steps=100):
+def time_envs(envs, config, num_steps=1000):
     # timing code
     num_envs = envs.num_envs
-    envs.reset()
+    envs_obs = envs.reset()
     # try 400 random actions and report average time for each category
-    possible_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
-    possible_actions = [idx for idx, a in enumerate(possible_actions) if a.lower() not in ["stop", "grab_release"]]
-    actions = [random.choice(possible_actions) for _ in range(num_steps)]
-    envs_actions = [[action] * num_envs for action in actions]
+    actual_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
+    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop", "grab_release"]]
+    sample_actions = [random.choice(possible_actions) for _ in range(num_steps)]
     envs_time = defaultdict(list)
 
-    for actions in tqdm(envs_actions, desc="Debug action timings"):
+    for action in tqdm(sample_actions, desc="Debug action timings"):
         start = time.time()
+        # # sample iid and select random action
+        # try:
+        #     iids = [eo["visible_obj_iids"][:eo["num_visible_objs"]]
+        #             if eo["gripped_object_id"] == -1
+        #             else eo["visible_rec_iids"][:eo["num_visible_recs"]] for eo
+        #             in
+        #             envs_obs]
+        # except:
+        #     import pdb
+        #     pdb.set_trace()
+        # actions_args = [random.choice(ii) if len(ii) else -1 for ii in iids]
+        # envs_actions = [
+        #     {"action": {"action": action, "action_args": {"iid": iid}}} for iid
+        #     in actions_args]
 
-        # individual_times = []
-        # for i in range(num_envs):
-        #     start_time = time.time()
-        #     envs.step_at(i, actions[i])
-        #     time_take = time.time() - start_time
-        #     # print(f"Step at {i} w/ action {actions[i]}: {time_take}")
-        #     individual_times.append(time_take)
+        envs_actions = [{"action": {"action": action, "action_args": {"iid": -1}}} for _ in range(num_envs)]
 
-        mp_time = time.time()
-        envs.step(actions)
-        # print(
-        # f"Average individual times: {sum(individual_times)/len(individual_times)}"
-        #   f" // MP time: {time.time()-mp_time}")
-        # env.step(action=actions[0])
+        envs_obs = [out[0] for out in envs.step(envs_actions)]
         end = time.time()
-        envs_time[actions[0]].append(end - start)
+        envs_time[action].append(end - start)
 
     for action, times in envs_time.items():
-        print(f"Action: {possible_actions[action]} || "
-              f"Avg. Time over {len(times)} "
-              f"tries: {round(sum(times) / len(times), 4)} secs || "
+        print(f"Action: {actual_actions[action]} || "
+              f"Tries: {len(times)} ||"
+              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 4)} secs || "
+              f"Num Processes: {num_envs}")
+
+
+def time_env(env, config, num_steps=1000):
+    actual_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
+    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop", "grab_release"]]
+    actions = [random.choice(possible_actions) for _ in range(num_steps)]
+    envs_time = defaultdict(list)
+    num_envs = 1
+
+    for a in tqdm(actions, desc="Debug action timings"):
+        start = time.time()
+        out = env.step(action={"action": a})
+        end = time.time()
+        envs_time[a].append(end - start)
+
+    for action, times in envs_time.items():
+        print(f"Action: {actual_actions[action]} || "
+              f"Tries: {len(times)} ||"
+              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 4)} secs || "
               f"Num Processes: {num_envs}")

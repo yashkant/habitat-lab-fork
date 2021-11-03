@@ -3,7 +3,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import random
+
 import signal
 import time
 import warnings
@@ -63,6 +63,20 @@ CURRENT_EPISODE_NAME = "current_episode"
 NUMBER_OF_EPISODE_NAME = "number_of_episodes"
 ACTION_SPACE_NAME = "action_space"
 OBSERVATION_SPACE_NAME = "observation_space"
+
+def get_env_attr(env, attr_name, max_calls=10):
+    try:
+        return getattr(env, attr_name)
+    except Exception as e:
+        if max_calls == 0:
+            raise e
+        if hasattr(env, 'env'):
+            return get_env_attr(env.env, attr_name, max_calls-1)
+        elif hasattr(env, '_env'):
+            return get_env_attr(env._env, attr_name, max_calls-1)
+        else:
+            raise ValueError(f"Could not find property {attr_name} of {env}")
+
 
 
 def _make_env_fn(
@@ -219,7 +233,6 @@ class VectorEnv:
         env_fn: Callable,
         env_fn_args: Tuple[Any],
         auto_reset_done: bool,
-        worker_num: int = -1,
         mask_signals: bool = False,
         child_pipe: Optional[Connection] = None,
         parent_pipe: Optional[Connection] = None,
@@ -233,8 +246,6 @@ class VectorEnv:
             signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 
         env = env_fn(*env_fn_args)
-        no_read_count = 100
-        observations, reward, done, info = None, None, None, None
         if parent_pipe is not None:
             parent_pipe.close()
         try:
@@ -244,30 +255,17 @@ class VectorEnv:
                     # different step methods for habitat.RLEnv and habitat.Env
                     if isinstance(env, (habitat.RLEnv, gym.Env)):
                         # habitat.RLEnv
-                        # start = time.time()
-                        # if observations is None:
-                        #     # step only once
-                        #     observations, reward, done, info = env.step(**data)
-                        # else:
-                        #     # rand_sleep = random.random() * 0.1
-                        #     # time.sleep(rand_sleep)
-                        #     time.sleep(0.006)
                         observations, reward, done, info = env.step(**data)
-                        # print(f"{command} took worker {worker_num}: {(time.time() - start)}", flush=True)
-
                         if auto_reset_done and done:
                             observations = env.reset()
                         with profiling_wrapper.RangeContext(
                             "worker write after step"
                         ):
-                            # start = time.time()
                             connection_write_fn(
                                 (observations, reward, done, info)
                             )
-                            # print(f"write took worker {worker_num}: {(time.time() - start)}", flush=True)
                     elif isinstance(env, habitat.Env):  # type: ignore
                         # habitat.Env
-                        # start = time.time()
                         observations = env.step(**data)
                         if auto_reset_done and env.episode_over:
                             observations = env.reset()
@@ -303,17 +301,7 @@ class VectorEnv:
                     raise NotImplementedError(f"Unknown command {command}")
 
                 with profiling_wrapper.RangeContext("worker wait for command"):
-                    start = time.time()
-                    # stop reading after first setp command.
-                    # if not command == STEP_COMMAND:
-                    #     command, data = connection_read_fn()
-                    # else:
-                    #     no_read_count -= 1
-                    #     if no_read_count < 0:
-                    #         command = CLOSE_COMMAND
-                    #         print(f"Sending close")
                     command, data = connection_read_fn()
-                    # print(f"read took worker {worker_num}: {(time.time() - start)}", flush=True)
 
         except KeyboardInterrupt:
             logger.info("Worker KeyboardInterrupt")
@@ -321,6 +309,9 @@ class VectorEnv:
             if child_pipe is not None:
                 child_pipe.close()
             env.close()
+            sim = get_env_attr(env, '_sim')
+            sim.close(destroy=True)
+            del sim
 
     def _spawn_workers(
         self,
@@ -335,9 +326,8 @@ class VectorEnv:
             ]
         )
         self._workers = []
-        for worker_conn, parent_conn, env_args, worker_num in zip(
-            worker_connections, parent_connections, env_fn_args,
-            range(len(worker_connections))
+        for worker_conn, parent_conn, env_args in zip(
+            worker_connections, parent_connections, env_fn_args
         ):
             ps = self._mp_ctx.Process(
                 target=self._worker_env,
@@ -347,7 +337,6 @@ class VectorEnv:
                     make_env_fn,
                     env_args,
                     self._auto_reset_done,
-                    worker_num,
                     workers_ignore_signals,
                     worker_conn,
                     parent_conn,
@@ -426,8 +415,10 @@ class VectorEnv:
     def async_step_at(
         self, index_env: int, action: Union[int, str, Dict[str, Any]]
     ) -> None:
+        # Backward compatibility
         if isinstance(action, (int, np.integer, str)):
             action = {"action": {"action": action}}
+
         self._warn_cuda_tensors(action)
         self._connection_write_fns[index_env]((STEP_COMMAND, action))
 
@@ -459,9 +450,14 @@ class VectorEnv:
     @profiling_wrapper.RangeContext("wait_step")
     def wait_step(self) -> List[Any]:
         r"""Wait until all the asynchronized environments have synchronized."""
-        return [
+        init_time = time.time()
+        data = [
             self.wait_step_at(index_env) for index_env in range(self.num_envs)
         ]
+        done_time = time.time() - init_time
+        # if done_time > 0.003:
+        #     print(f"wait time: {done_time}")
+        return data
 
     def step(self, data: List[Union[int, str, Dict[str, Any]]]) -> List[Any]:
         r"""Perform actions in the vectorized environments.
@@ -643,8 +639,8 @@ class ThreadedVectorEnv(VectorEnv):
         )
         parent_read_queues, parent_write_queues = queues
         self._workers = []
-        for parent_read_queue, parent_write_queue, env_args, worker_num in zip(
-            parent_read_queues, parent_write_queues, env_fn_args, range(self._num_envs)
+        for parent_read_queue, parent_write_queue, env_args in zip(
+            parent_read_queues, parent_write_queues, env_fn_args
         ):
             thread = Thread(
                 target=self._worker_env,
@@ -654,7 +650,6 @@ class ThreadedVectorEnv(VectorEnv):
                     make_env_fn,
                     env_args,
                     self._auto_reset_done,
-                    worker_num
                 ),
             )
             self._workers.append(thread)

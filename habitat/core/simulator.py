@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import abc
+import time
 from collections import OrderedDict
 from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
@@ -104,11 +105,13 @@ class Observations(Dict[str, Any]):
         :param sensors: list of sensors whose observations are fetched and
             packaged.
         """
-
-        data = [
-            (uuid, sensor.get_observation(*args, **kwargs))
-            for uuid, sensor in sensors.items()
-        ]
+        data = []
+        time_info = {}
+        for uuid, sensor in sensors.items():
+            init_time = time.time()
+            data.append((uuid, sensor.get_observation(*args, **kwargs)))
+            time_info[uuid] = time.time() - init_time
+        # print(f"Time info: {time_info}")
         super().__init__(data)
 
 

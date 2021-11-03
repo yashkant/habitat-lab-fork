@@ -273,9 +273,11 @@ class Env:
         task_measure_time = time.time()
         self._update_step_stats()
         update_step_time = time.time()
-        # print(f"task-step: {task_step_time - init_time} | "
-        #       f"task-measure: {task_measure_time - task_step_time} | "
-        #       f"update-step: {update_step_time - task_measure_time}")
+        # print(
+        #     f"task-step: {task_step_time - init_time} | "
+        #     f"task-measure: {task_measure_time - task_step_time} | "
+        #     f"total: {update_step_time - init_time}"
+        #       )
         return observations
 
     @staticmethod

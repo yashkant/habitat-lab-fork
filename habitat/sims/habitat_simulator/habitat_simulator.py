@@ -480,11 +480,20 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
         return is_updated
 
     def reset(self) -> Observations:
+        """
+        (Pdb) sim_obs['depth'].shape
+        (128, 128)
+        (Pdb) sim_obs['semantic'].shape
+        (128, 128)
+        (Pdb) sim_obs['rgb'].shape
+        (128, 128, 4)
+        """
         sim_obs = super().reset()
         if self._update_agents_state():
             sim_obs = self.get_sensor_observations()
 
         self._prev_sim_obs = sim_obs
+        # yk: below call applies preprocessing to raw simulator sensors
         return self._sensor_suite.get_observations(sim_obs)
 
     def step(self, action: Union[str, int]) -> Observations:

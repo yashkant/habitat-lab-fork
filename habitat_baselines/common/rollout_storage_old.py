@@ -89,9 +89,7 @@ class RolloutStorage:
                 # these are pulled-out in rewards
                 if sensor in ["fail_action"]:
                     continue
-                self.observations[sensor][self.step + 1].copy_(
-                    observations[sensor]
-                )
+                self.observations[sensor][self.step + 1].copy_(observations[sensor])
             self.recurrent_hidden_states[self.step + 1].copy_(recurrent_hidden_states)
         except:
             import pdb
