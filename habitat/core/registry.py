@@ -28,6 +28,7 @@ Various decorators for registry different kind of classes with unique keys
 """
 
 import collections
+import os.path
 from typing import Any, Callable, DefaultDict, Optional, Type
 
 from habitat.core.dataset import Dataset
@@ -233,3 +234,8 @@ registry = Registry()
 registry.mapping["ignore_object_ids"] = []
 registry.mapping["ignore_object_ids_ray"] = []
 registry.mapping["debug"] = False
+
+# initialize a cache for on-the-fly conversion of urdfs to obj files
+registry.mapping["urdf_obj_cache"] = "data/urdf_obj_cache"
+if not os.path.exists(registry.mapping["urdf_obj_cache"]):
+    os.makedirs(registry.mapping["urdf_obj_cache"])

@@ -111,16 +111,16 @@ def construct_envs(
         configs.append(proc_config)
     # task_config.DATASET.CONTENT_SCENES now contain all scenes splits
 
-    # if registry.mapping["debug"]:
-    #     env = make_env_fn(configs[0], env_classes[0])
-    #     env.reset()
-    #     time_env(env, config)
-    #     # x = env.step(action={"action": 3, "action_args": {"iid": -1}})
-    #     # from cos_eor.utils.debug import debug_viewer
-    #     # debug_viewer(env)
-    #     # import pdb
-    #     # pdb.set_trace()
-    #     del env
+    if registry.mapping["debug"]:
+        env = make_env_fn(configs[0], env_classes[0])
+        env.reset()
+        # time_env(env, config)
+        # x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+        from cos_eor.utils.debug import debug_viewer
+        debug_viewer(env)
+        import pdb
+        pdb.set_trace()
+        del env
 
     """
     Action: TURN_LEFT || Tries: 185 ||Avg Time / Num Processes: 0.0036 secs || Num Processes: 1
