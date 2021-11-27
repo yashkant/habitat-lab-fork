@@ -234,6 +234,7 @@ registry = Registry()
 registry.mapping["ignore_object_ids"] = []
 registry.mapping["ignore_object_ids_ray"] = []
 registry.mapping["debug"] = False
+registry.mapping["time"] = False
 
 # initialize a cache for on-the-fly conversion of urdfs to obj files
 registry.mapping["urdf_obj_cache"] = "data/urdf_obj_cache"

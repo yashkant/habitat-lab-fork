@@ -114,10 +114,18 @@ def construct_envs(
     if registry.mapping["debug"]:
         env = make_env_fn(configs[0], env_classes[0])
         env.reset()
-        # time_env(env, config)
-        # x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+        # t = task_env._env._task; t.rec_packers[2].shelves =[]
         from cos_eor.utils.debug import debug_viewer
         debug_viewer(env)
+        # x = env.step(action={"action": 3, "action_args": {"iid": -1}})
+        import pdb
+        pdb.set_trace()
+        del env
+
+    if registry.mapping["time"]:
+        env = make_env_fn(configs[0], env_classes[0])
+        env.reset()
+        time_env(env, config)
         import pdb
         pdb.set_trace()
         del env
@@ -141,11 +149,6 @@ def construct_envs(
     # make_video_cv2(observations, prefix="debug-rgb-", sensor="rgb")
     # make_video_cv2(observations, prefix="debug-rgb-third-", sensor="rgb_3rd_person")
 
-    # envs = habitat.ThreadedVectorEnv(
-    #     make_env_fn=make_env_fn,
-    #     env_fn_args=tuple(zip(configs, env_classes)),
-    #     workers_ignore_signals=workers_ignore_signals,
-    # )
     """
     Action: LOOK_DOWN || Tries: 189 ||Avg Time / Num Processes: 0.0058 secs || Num Processes: 8
     Action: TURN_LEFT || Tries: 219 ||Avg Time / Num Processes: 0.0059 secs || Num Processes: 8
@@ -154,11 +157,23 @@ def construct_envs(
     Action: MOVE_FORWARD || Tries: 198 ||Avg Time / Num Processes: 0.006 secs || Num Processes: 8
     """
 
-    envs = habitat.VectorEnv(
+    # envs = habitat.VectorEnv(
+    #     make_env_fn=make_env_fn,
+    #     env_fn_args=tuple(zip(configs, env_classes)),
+    #     workers_ignore_signals=workers_ignore_signals,
+    # )
+
+    envs = habitat.ThreadedVectorEnv(
         make_env_fn=make_env_fn,
         env_fn_args=tuple(zip(configs, env_classes)),
         workers_ignore_signals=workers_ignore_signals,
     )
+
+    # pbar = tqdm(desc="Reset")
+    # while True:
+    #     pbar.update()
+    #     envs.reset()
+
     """
     Without L2 calculations and PP action
     Action: LOOK_UP || Tries: 213 ||Avg Time / Num Processes: 0.0014 secs || Num Processes: 8
@@ -181,7 +196,7 @@ def construct_envs(
     With L2 calculations, and PP action
     """
 
-    if registry.mapping["debug"]:
+    if registry.mapping["time"]:
         time_envs(envs, config)
         import pdb
         pdb.set_trace()
@@ -189,34 +204,35 @@ def construct_envs(
     return envs
 
 
-def time_envs(envs, config, num_steps=1000):
+def time_envs(envs, config, num_steps=800):
     # timing code
     num_envs = envs.num_envs
     envs_obs = envs.reset()
     # try 400 random actions and report average time for each category
     actual_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
-    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop", "grab_release"]]
+    # possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop"]]
+    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() in ["grab_release"]]
     sample_actions = [random.choice(possible_actions) for _ in range(num_steps)]
     envs_time = defaultdict(list)
 
+    # obj_iids = [t.sim_obj_id_to_iid[oid] for oid in list(t.sim_obj_id_to_iid.keys()) if t.sim_obj_id_to_type[oid] == "obj"]
+    # rec_iids = [t.sim_obj_id_to_iid[oid] for oid in list(t.sim_obj_id_to_iid.keys()) if t.sim_obj_id_to_type[oid] == "rec"]
+
     for action in tqdm(sample_actions, desc="Debug action timings"):
         start = time.time()
-        # # sample iid and select random action
-        # try:
-        #     iids = [eo["visible_obj_iids"][:eo["num_visible_objs"]]
-        #             if eo["gripped_object_id"] == -1
-        #             else eo["visible_rec_iids"][:eo["num_visible_recs"]] for eo
-        #             in
-        #             envs_obs]
-        # except:
-        #     import pdb
-        #     pdb.set_trace()
-        # actions_args = [random.choice(ii) if len(ii) else -1 for ii in iids]
-        # envs_actions = [
-        #     {"action": {"action": action, "action_args": {"iid": iid}}} for iid
-        #     in actions_args]
-
-        envs_actions = [{"action": {"action": action, "action_args": {"iid": -1}}} for _ in range(num_envs)]
+        # sample iid and select random action
+        try:
+            iids = [eo["visible_obj_iids"][:eo["num_visible_objs"]]
+                    if eo["gripped_object_id"] == -1
+                    else eo["visible_rec_iids"][:eo["num_visible_recs"]] for eo
+                    in
+                    envs_obs]
+        except:
+            import pdb
+            pdb.set_trace()
+        actions_args = [random.choice(ii) if len(ii) else -1 for ii in iids]
+        envs_actions = [{"action": {"action": action, "action_args": {"iid": iid}}} for iid in actions_args]
+        # envs_actions = [{"action": {"action": action, "action_args": {"iid": -1}}} for _ in range(num_envs)]
 
         envs_obs = [out[0] for out in envs.step(envs_actions)]
         end = time.time()
@@ -225,25 +241,34 @@ def time_envs(envs, config, num_steps=1000):
     for action, times in envs_time.items():
         print(f"Action: {actual_actions[action]} || "
               f"Tries: {len(times)} ||"
-              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 4)} secs || "
+              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 5)} secs || "
               f"Num Processes: {num_envs}")
 
 
 def time_env(env, config, num_steps=1000):
     actual_actions = config.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
-    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop", "grab_release"]]
+    # possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() not in ["stop"]]
+    possible_actions = [idx for idx, a in enumerate(actual_actions) if a.lower() in ["grab_release"]]
     actions = [random.choice(possible_actions) for _ in range(num_steps)]
     envs_time = defaultdict(list)
     num_envs = 1
+    obs = env.reset()
+
+    t = env._env._task
+    obj_iids = [t.sim_obj_id_to_iid[oid] for oid in list(t.sim_obj_id_to_iid.keys()) if t.sim_obj_id_to_type[oid] == "obj"]
+    rec_iids = [t.sim_obj_id_to_iid[oid] for oid in list(t.sim_obj_id_to_iid.keys()) if t.sim_obj_id_to_type[oid] == "rec"]
+    assert len(obj_iids) > 0 and len(rec_iids) > 0
 
     for a in tqdm(actions, desc="Debug action timings"):
         start = time.time()
-        out = env.step(action={"action": a})
+        iids = obj_iids if obs["gripped_object_id"] == -1 else  rec_iids
+        iid = random.choice(iids)
+        obs, _, _, _ = env.step(action={"action": a, "action_args": {"iid": -1}})
         end = time.time()
         envs_time[a].append(end - start)
 
     for action, times in envs_time.items():
         print(f"Action: {actual_actions[action]} || "
               f"Tries: {len(times)} ||"
-              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 4)} secs || "
+              f"Avg Time / Num Processes: {round(sum(times) / (len(times) * num_envs), 5)} secs || "
               f"Num Processes: {num_envs}")
