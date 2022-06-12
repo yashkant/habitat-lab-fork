@@ -33,8 +33,6 @@ from habitat_baselines.rl.models.rnn_state_encoder import (
     build_rnn_state_encoder,
 )
 from habitat_baselines.rl.ppo import Net, Policy
-import rlf.rl.utils as rutils
-from orp.env_aux import TargetPointGoalGPSAndCompassSensor
 from habitat.core.spaces import ActionSpace
 
 @baseline_registry.register_policy
@@ -235,9 +233,9 @@ class PointNavResNetNet(Net):
         rnn_input_size = self._n_prev_action
         n_input_goal = 0
 
-        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
+        if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observation_space.spaces:
             n_input_goal = observation_space.spaces[
-                TargetPointGoalGPSAndCompassSensor.cls_uuid
+                IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             ].shape[0] + 1
             self.tgt_embeding = nn.Linear(n_input_goal, 32)
             rnn_input_size += 32
@@ -393,9 +391,9 @@ class PointNavResNetNet(Net):
             visual_feats = self.visual_fc(visual_feats)
             x.append(visual_feats)
 
-        if TargetPointGoalGPSAndCompassSensor.cls_uuid in observations:
+        if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
             goal_observations = observations[
-                TargetPointGoalGPSAndCompassSensor.cls_uuid
+                IntegratedPointGoalGPSAndCompassSensor.cls_uuid
             ]
             goal_observations = torch.stack(
                 [

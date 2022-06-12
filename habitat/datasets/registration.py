@@ -11,8 +11,6 @@ from habitat.datasets.object_nav import _try_register_objectnavdatasetv1
 from habitat.datasets.pointnav import _try_register_pointnavdatasetv1
 from habitat.datasets.vln import _try_register_r2r_vln_dataset
 
-from cos_eor.dataset import _try_register_cos_eor_dataset, _try_register_cos_eor_play_dataset
-
 
 def make_dataset(id_dataset, **kwargs):
     logger.info("Initializing dataset {}".format(id_dataset))
@@ -26,5 +24,3 @@ _try_register_objectnavdatasetv1()
 _try_register_mp3d_eqa_dataset()
 _try_register_pointnavdatasetv1()
 _try_register_r2r_vln_dataset()
-_try_register_cos_eor_dataset()
-_try_register_cos_eor_play_dataset()

@@ -21,12 +21,6 @@ from habitat_baselines.utils.common import (
     poll_checkpoint_folder,
 )
 
-import sys
-sys.path.insert(0, './')
-from orp.dataset import OrpNavDatasetV0
-from orp.sim.simulator import OrpSim
-from orp.env_aux import *
-
 
 class BaseTrainer:
     r"""Generic trainer class that serves as a base template for more
@@ -99,12 +93,6 @@ class BaseTrainer:
                 len(self.config.VIDEO_DIR) > 0
             ), "Must specify a directory for storing videos on disk"
 
-        import sys
-        sys.path.insert(0, './')
-        from orp_env_adapter import get_hab_args
-        from method.orp_log_adapter import CustomLogger
-        args = get_hab_args(self.config, './config.yaml')
-
         if self.config.EVAL_CONCUR:
             found_f = None
             #timeout_seconds = 60 / 2
@@ -128,9 +116,9 @@ class BaseTrainer:
             self.config.freeze()
             print('Found out folder ', self.config.EVAL_CKPT_PATH_DIR)
 
-
-
-        with CustomLogger(not self.config.no_wb, args, self.config) as writer:
+        with TensorboardWriter(
+            self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
+        ) as writer:
             if self.config.EVAL.EMPTY:
                 self._eval_checkpoint_nodes(
                     self.config.EVAL_CKPT_PATH_DIR,
